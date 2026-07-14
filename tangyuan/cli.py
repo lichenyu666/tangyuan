@@ -1,150 +1,137 @@
+"""汤圆 CLI — 带品牌主题的终端界面。"""
+
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Optional
 
 import typer
-from rich.console import Console
-from rich.panel import Panel
-from rich.syntax import Syntax
-from rich.table import Table
 
 from tangyuan import __version__
 from tangyuan.agent import TangyuanAgent
 from tangyuan.config import load_settings
-from tangyuan.skills import list_skills
 from tangyuan.memory import (
     daily_log_path,
     ensure_default_user_memory,
-    global_memory_dir,
-    history_path,
     memory_md_path,
     project_memory_path,
     read_long_term_memory,
     summarize_tokens,
-    tokens_path,
     write_memory,
 )
+from tangyuan.skills import list_skills
 from tangyuan.tools import build_default_tools
 from tangyuan.trace import TraceLogger
+from tangyuan.ui import (
+    confirm_ui,
+    console,
+    details_on,
+    print_banner,
+    print_dim,
+    print_err,
+    print_final,
+    print_help,
+    print_ok,
+    print_plan,
+    print_stream_delta,
+    print_stream_end,
+    print_stream_start,
+    print_tool_call,
+    print_tool_result,
+    print_warn,
+    prompt_label,
+    reset_stream_flag,
+    set_details,
+    skills_table,
+    stream_had_text,
+    tools_table,
+)
 
 app = typer.Typer(
     add_completion=False,
     invoke_without_command=True,
-    help="汤圆 Tangyuan — 李晨雨独立实现的终端 Agent",
+    help="汤圆 Tangyuan — 终端 Agent",
 )
-console = Console()
-
-
-def _confirm(title: str, detail: str) -> bool:
-    console.print(Panel(detail, title=f"[yellow]{title}[/yellow]", border_style="yellow"))
-    return typer.confirm("确认执行？", default=False)
 
 
 def _on_event(kind: str, **payload) -> None:
     if kind == "step":
-        console.print(f"[dim]── step {payload['step']}/{payload['max_steps']} ──[/dim]")
-    elif kind == "assistant_delta":
-        console.print(f"[blue]{payload.get('content')}[/blue]")
-    elif kind == "tool_call":
-        args = json.dumps(payload["args"], ensure_ascii=False)
-        if len(args) > 120:
-            args = args[:120] + "..."
-        console.print(f"  [magenta]⚙ {payload['name']}[/magenta] {args}")
-    elif kind == "tool_result":
-        preview = str(payload.get("result", "")).replace("\n", " ")
-        if len(preview) > 160:
-            preview = preview[:160] + "..."
-        console.print(f"  [green]✓[/green] {preview}")
-    elif kind == "plan":
-        items = payload.get("items") or []
-        if not items:
-            console.print("[dim]📋 计划已清空[/dim]")
-            return
-        console.print("[cyan]📋 任务计划[/cyan]")
-        marks = {
-            "pending": "[ ]",
-            "in_progress": "[>]",
-            "completed": "[x]",
-            "cancelled": "[-]",
-        }
-        for it in items:
-            mark = marks.get(it.get("status"), "[ ]")
-            console.print(
-                f"  {mark} {it.get('id')}: {it.get('content')} "
-                f"[dim]({it.get('status')})[/dim]"
-            )
-    elif kind == "plan_stall":
-        if payload.get("gate"):
-            console.print(
-                "[yellow]⚠ 计划未办妥，已拦截收工并催促继续（Stop Gate）[/yellow]"
-            )
-        else:
-            console.print(
-                "[yellow]⚠ 未完成项多步无进展，已提醒核对计划并回退换路径[/yellow]"
-            )
-    elif kind == "subagent":
-        console.print(
-            f"[cyan]♟ 子代理回禀[/cyan] {payload.get('preview', '')}"
-        )
-    elif kind == "spin":
-        console.print(
-            "[yellow]⚠ 检测到重复调用，已提醒换路径（避免空转）[/yellow]"
-        )
-    elif kind == "final":
-        console.print()
-        console.print(Panel(payload.get("content") or "(空)", title="汤圆", border_style="green"))
-    elif kind == "compact":
-        console.print(
-            f"[dim]↻ 会话已压缩：归档 {payload.get('old')} 条，保留最近 {payload.get('kept')} 条[/dim]"
-        )
-    elif kind == "distill":
+        if details_on():
+            print_dim(f"── {payload['step']}/{payload['max_steps']} ──")
+        return
+    if kind == "stream_start":
+        print_stream_start()
+        return
+    if kind == "stream_delta":
+        print_stream_delta(payload.get("delta") or "")
+        return
+    if kind == "stream_end":
+        print_stream_end()
+        return
+    if kind == "assistant_delta":
+        # 兼容旧调用：直接增量打印
+        print_stream_start()
+        print_stream_delta(payload.get("content") or "")
+        print_stream_end()
+        return
+    if kind == "tool_call":
+        print_tool_call(payload["name"], payload.get("args") or {})
+        return
+    if kind == "tool_result":
+        print_tool_result(str(payload.get("result", "")))
+        return
+    if kind == "plan":
         items = payload.get("items") or []
         if items:
-            console.print(f"[dim]📝 已蒸馏项目记忆 {len(items)} 条[/dim]")
-
-
-def _banner(settings, ws) -> None:
-    tools = build_default_tools(ws)
-    console.print(
-        Panel(
-            f"[bold]汤圆 Tangyuan[/bold] v{__version__}\n"
-            f"model     : {settings.model}\n"
-            f"workspace : {ws}\n"
-            f"tools     : {', '.join(tools.names())}\n\n"
-            "[dim]直接输入需求。拖文件到终端或写 @路径 可附带文件。\n"
-            "复杂任务：update_plan 收口；子代理 / Team / MCP(time) 已接入。\n"
-            "长期记忆：/remember  |  /memory  |  /tokens\n"
-            "命令: /help  /tools  /skills  /skill  /team  /inbox  /memory  /remember  /tokens  /clear  /exit[/dim]",
-            border_style="blue",
-            title="对话框已就绪",
-        )
-    )
-
-
-def _print_skills(ws) -> None:
-    skills = list_skills(ws)
-    if not skills:
-        console.print("[yellow]还没有 skills/*/SKILL.md[/yellow]")
+            print_plan(items)
+        elif details_on():
+            print_dim("计划已清空")
         return
-    table = Table(title="可用 Skills（渐进披露：摘要先见，全文按需 load）")
-    table.add_column("id", style="cyan")
-    table.add_column("标题")
-    table.add_column("何时使用")
-    for s in skills:
-        table.add_row(s["id"], s["title"], s.get("when", "")[:60])
-    console.print(table)
-    console.print("[dim]默认：摘要进系统提示，匹配后 load_skill；/skill <id> 强制全文；/skill off 取消[/dim]")
+    if kind == "plan_stall":
+        print_warn(
+            "计划未办完，继续推进" if payload.get("gate") else "计划卡住，请换路径"
+        )
+        return
+    if kind == "subagent":
+        print_dim(f"♟ {str(payload.get('preview', ''))[:80]}")
+        return
+    if kind == "spin":
+        print_warn("疑似空转，已提醒换路径")
+        return
+    if kind == "final":
+        # 流式期间已逐字显示；这里只在未流式时（max_steps/异常）补 Panel
+        if stream_had_text():
+            reset_stream_flag()
+            console.print()
+            return
+        print_final(payload.get("content") or "", model="")
+        return
+    if kind == "compact" and details_on():
+        print_dim(
+            f"会话压缩 · 归档 {payload.get('old')} · 保留 {payload.get('kept')}"
+        )
+        return
+    if kind == "distill" and details_on():
+        items = payload.get("items") or []
+        if items:
+            print_dim(f"已记项目笔记 {len(items)} 条")
 
 
-def _make_agent(settings, yes: bool, forced_skill_id: Optional[str] = None) -> TangyuanAgent:
+def _make_agent(
+    settings,
+    yes: bool,
+    forced_skill_id: Optional[str] = None,
+    on_event=None,
+    read_only: bool = False,
+) -> TangyuanAgent:
     ws = settings.resolve_workspace()
     if yes:
         confirm = None
         confirm_writes = False
         confirm_shell = False
     else:
-        confirm = _confirm
+        confirm = confirm_ui
         confirm_writes = settings.confirm_writes
         confirm_shell = settings.require_confirm_shell
     tools = build_default_tools(
@@ -154,10 +141,15 @@ def _make_agent(settings, yes: bool, forced_skill_id: Optional[str] = None) -> T
         confirm_writes=confirm_writes,
         confirm_shell=confirm_shell,
         settings=settings,
+        read_only=read_only,
     )
     trace = TraceLogger(ws)
     return TangyuanAgent(
-        settings, tools, trace, on_event=_on_event, forced_skill_id=forced_skill_id
+        settings,
+        tools,
+        trace,
+        on_event=on_event or _on_event,
+        forced_skill_id=forced_skill_id,
     )
 
 
@@ -165,10 +157,11 @@ def _maybe_distill(agent: TangyuanAgent, label: str) -> None:
     try:
         written = agent.distill_project_memory()
     except Exception as e:  # noqa: BLE001
-        console.print(f"[dim]蒸馏跳过：{e}[/dim]")
+        if details_on():
+            print_dim(f"蒸馏跳过：{e}")
         return
-    if written:
-        console.print(f"[dim]📝 {label}：已写入 {len(written)} 条项目记忆[/dim]")
+    if written and details_on():
+        print_dim(f"{label}：写入 {len(written)} 条")
 
 
 def interactive(
@@ -176,108 +169,88 @@ def interactive(
     model: Optional[str] = None,
     yes: bool = False,
 ) -> None:
-    """Claude Code 风格：进入终端对话框。"""
     settings = load_settings(workspace=workspace, model=model)
     ws = settings.resolve_workspace()
-    _banner(settings, ws)
-    agent = _make_agent(settings, yes=yes)
+    print_banner(settings.model, ws)
+
+    def on_event(kind: str, **payload) -> None:
+        if kind == "final":
+            # 流式期间已逐字显示；非流式（max_steps/异常）才用 Panel
+            if stream_had_text():
+                reset_stream_flag()
+                console.print()
+                return
+            print_final(payload.get("content") or "", model=settings.model)
+            return
+        _on_event(kind, **payload)
+
+    agent = _make_agent(settings, yes=yes, on_event=on_event)
 
     while True:
         try:
-            line = console.input("[bold cyan]你 ›[/bold cyan] ").strip()
+            line = console.input(prompt_label()).strip()
         except (EOFError, KeyboardInterrupt):
             _maybe_distill(agent, "退出前")
-            console.print("\n[dim]再见。[/dim]")
+            console.print()
+            print_dim("再见")
             break
 
         if not line:
             continue
         if line in {"/exit", "/quit", "exit", "quit"}:
             _maybe_distill(agent, "退出前")
-            console.print("[dim]再见。[/dim]")
+            print_dim("再见")
             break
         if line in {"/help", "help"}:
-            console.print(
-                Panel(
-                    "直接说需求即可（Skills 会按意图自动选用），例如：\n"
-                    "• 帮我搜一下 LangGraph，并打开官方文档\n"
-                    "• 这个仓库是干什么的\n"
-                    "• @README.md 根据它做个 3 页 PPT\n"
-                    "• 这段报错怎么修：（粘贴日志）\n\n"
-                    "复杂任务：update_plan 拆步骤并收口；细节用子代理；长期协作用 Team。\n\n"
-                    "手动 Skill：\n"
-                    "/skills           列出技能\n"
-                    "/skill fix-error  强制用「修报错」剧本\n"
-                    "/skill off        取消强制，改回自动\n\n"
-                    "Team：\n"
-                    "/team             查看队友状态\n"
-                    "/inbox            读取 lead inbox\n\n"
-                    "长期记忆（分层）：\n"
-                    "/remember topic:姓名 李晨雨\n"
-                    "/remember project 本仓库用 DeepSeek\n"
-                    "/memory           查看 MEMORY / 日记 / 路径\n"
-                    "/tokens           查看 Token 用量汇总\n\n"
-                    "/tools  /clear  /exit",
-                    title="帮助",
-                )
-            )
+            print_help()
+            continue
+        if line in {"/details", "/verbose"}:
+            set_details(not details_on())
+            print_ok(f"细节 {'开' if details_on() else '关'}")
             continue
         if line == "/tools":
             list_tools()
             continue
         if line == "/skills":
-            _print_skills(ws)
+            rows = list_skills(ws)
+            if not rows:
+                print_dim("还没有 skills")
+            else:
+                skills_table(rows)
             continue
         if line.startswith("/skill"):
             parts = line.split(maxsplit=1)
             arg = parts[1].strip() if len(parts) > 1 else ""
             if not arg or arg in {"off", "auto", "clear"}:
                 agent.set_forced_skill(None)
-                console.print("[yellow]已取消强制 Skill，改回按问题自动选用。[/yellow]")
+                print_dim("已取消强制 Skill")
             else:
                 ids = {s["id"] for s in list_skills(ws)}
                 if arg not in ids:
-                    console.print(f"[red]没有这个 Skill：{arg}[/red]")
-                    _print_skills(ws)
+                    print_err(f"没有 Skill：{arg}")
+                    skills_table(list_skills(ws))
                 else:
                     agent.set_forced_skill(arg)
-                    console.print(f"[green]已强制使用 Skill：{arg}[/green]")
+                    print_ok(f"强制 Skill：{arg}")
             continue
         if line == "/memory":
             ensure_default_user_memory(ws)
-            console.print(Panel(read_long_term_memory(ws) or "(空)", title="长期记忆", border_style="cyan"))
-            console.print(f"[dim]全局目录：{global_memory_dir()}[/dim]")
-            console.print(f"[dim]MEMORY.md：{memory_md_path()}[/dim]")
-            console.print(f"[dim]今日日记：{daily_log_path()}[/dim]")
-            console.print(f"[dim]history：{history_path()}[/dim]")
-            console.print(f"[dim]tokens：{tokens_path()}[/dim]")
-            console.print(f"[dim]项目 MEMORY：{project_memory_path(ws)}[/dim]")
+            console.print(read_long_term_memory(ws) or "(空)", style="ty.text")
+            if details_on():
+                print_dim(f"{memory_md_path()} · {daily_log_path()}")
+                print_dim(str(project_memory_path(ws)))
             continue
         if line == "/tokens":
             stats = summarize_tokens()
-            console.print(
-                Panel(
-                    f"calls            : {stats['calls']}\n"
-                    f"prompt_tokens    : {stats['prompt_tokens']}\n"
-                    f"completion_tokens: {stats['completion_tokens']}\n"
-                    f"total_tokens     : {stats['total_tokens']}\n"
-                    f"by_model         : {stats.get('by_model')}\n"
-                    f"file             : {stats.get('path')}",
-                    title="Token 计量",
-                    border_style="magenta",
-                )
+            print_dim(
+                f"tokens {stats['total_tokens']} · calls {stats['calls']}"
             )
             continue
         if line.startswith("/remember"):
             parts = line.split(maxsplit=1)
             rest = parts[1].strip() if len(parts) > 1 else ""
             if not rest:
-                console.print(
-                    "[yellow]用法：/remember 事实\n"
-                    "      /remember project 本仓库约定…\n"
-                    "      /remember daily 今天做了…\n"
-                    "      /remember topic:姓名 李晨雨[/yellow]"
-                )
+                print_dim("/remember 事实 | project … | daily … | topic:键 值")
                 continue
             bucket = "user"
             topic = None
@@ -290,39 +263,38 @@ def interactive(
                 fact = rest[len("daily ") :].strip()
             elif rest.startswith("user "):
                 fact = rest[len("user ") :].strip()
-            # /remember topic:姓名 李晨雨
             if fact.lower().startswith("topic:"):
                 body = fact[6:].strip()
                 if " " in body:
                     topic, fact = body.split(None, 1)
                 else:
-                    console.print("[yellow]用法：/remember topic:姓名 李晨雨[/yellow]")
+                    print_dim("/remember topic:姓名 李晨雨")
                     continue
             msg = write_memory(ws, fact, bucket=bucket, topic=topic)
             agent.refresh_system_prompt()
-            console.print(f"[green]{msg}[/green]")
+            print_ok(msg)
             continue
         if line == "/team":
             if "list_teammates" not in agent.tools.names():
-                console.print("[yellow]当前未启用 Agent Team[/yellow]")
+                print_dim("未启用 Team")
             else:
                 raw = agent.tools.call("list_teammates", {})
                 try:
                     data = json.loads(raw)
-                    console.print(data.get("team") or raw)
+                    console.print(data.get("team") or raw, style="ty.text")
                 except json.JSONDecodeError:
                     console.print(raw)
             continue
         if line == "/inbox":
             if "read_inbox" not in agent.tools.names():
-                console.print("[yellow]当前未启用 inbox[/yellow]")
+                print_dim("未启用 inbox")
             else:
                 raw = agent.tools.call("read_inbox", {})
                 try:
                     data = json.loads(raw)
                     msgs = data.get("inbox") or []
                     if not msgs:
-                        console.print("[dim]lead inbox 为空[/dim]")
+                        print_dim("inbox 空")
                     else:
                         console.print_json(data=msgs)
                 except json.JSONDecodeError:
@@ -331,16 +303,19 @@ def interactive(
         if line == "/clear":
             _maybe_distill(agent, "清空前")
             forced = agent.forced_skill_id
-            agent = _make_agent(settings, yes=yes, forced_skill_id=forced)
-            console.print("[yellow]已清空本轮对话（长期记忆仍保留；强制 Skill 如有则保持）。[/yellow]")
+            agent = _make_agent(
+                settings, yes=yes, forced_skill_id=forced, on_event=on_event
+            )
+            print_dim("已清空本轮")
             continue
 
         try:
             agent.ask(line)
         except Exception as e:  # noqa: BLE001
-            console.print(f"[red]失败:[/red] {e}")
+            print_err(str(e))
             continue
-        console.print(f"[dim]trace → {agent.trace.path}[/dim]\n")
+        if details_on():
+            print_dim(str(agent.trace.path))
 
 
 @app.callback()
@@ -350,14 +325,13 @@ def main(
     model: Optional[str] = typer.Option(None, "--model", "-m"),
     yes: bool = typer.Option(False, "--yes", "-y", help="危险操作不再确认"),
 ) -> None:
-    """无子命令时直接进入对话框。"""
     if ctx.invoked_subcommand is None:
         interactive(workspace=workspace, model=model, yes=yes)
 
 
 @app.command()
 def version() -> None:
-    console.print(f"tangyuan {__version__}")
+    console.print(f"[ty.brand]tangyuan[/] [ty.muted]{__version__}[/]")
 
 
 @app.command()
@@ -367,23 +341,30 @@ def run(
     model: Optional[str] = typer.Option(None, "--model", "-m"),
     max_steps: Optional[int] = typer.Option(None, "--max-steps"),
     yes: bool = typer.Option(False, "--yes", "-y"),
+    details: bool = typer.Option(False, "--details"),
 ) -> None:
-    """单次任务（非交互）。"""
+    if details:
+        set_details(True)
     settings = load_settings(workspace=workspace, model=model, max_steps=max_steps)
-    agent = _make_agent(settings, yes=yes)
-    console.print(
-        Panel(
-            f"model: {settings.model}\nworkspace: {settings.resolve_workspace()}",
-            title="汤圆 · 单次任务",
-            border_style="blue",
-        )
-    )
+
+    def on_event(kind: str, **payload) -> None:
+        if kind == "final":
+            # 流式期间已逐字显示；非流式（max_steps/异常）才用 Panel
+            if stream_had_text():
+                reset_stream_flag()
+                console.print()
+                return
+            print_final(payload.get("content") or "", model=settings.model)
+            return
+        _on_event(kind, **payload)
+
+    agent = _make_agent(settings, yes=yes, on_event=on_event)
+    print_dim(f"汤圆 · {settings.model} · {settings.resolve_workspace()}")
     try:
         agent.ask(task)
     except Exception as e:  # noqa: BLE001
-        console.print(f"[red]失败:[/red] {e}")
+        print_err(str(e))
         raise typer.Exit(1) from e
-    console.print(f"[dim]trace → {agent.trace.path}[/dim]")
 
 
 @app.command("chat")
@@ -392,28 +373,161 @@ def chat_cmd(
     model: Optional[str] = typer.Option(None, "--model", "-m"),
     yes: bool = typer.Option(False, "--yes", "-y"),
 ) -> None:
-    """显式进入对话框（与直接运行 tangyuan 相同）。"""
     interactive(workspace=workspace, model=model, yes=yes)
 
 
-@app.command("tools")
-def list_tools() -> None:
-    from pathlib import Path
+@app.command("plan")
+def plan_cmd(
+    task: str = typer.Argument(..., help="要规划的任务"),
+    workspace: Optional[str] = typer.Option(None, "--workspace", "-w"),
+    model: Optional[str] = typer.Option(None, "--model", "-m"),
+    yes: bool = typer.Option(False, "--yes", "-y"),
+    out: Optional[str] = typer.Option(None, "--out", "-o", help="计划文件路径，默认 <workspace>/.tangyuan/plan.md"),
+) -> None:
+    """Plan Mode：只用只读工具探索，产出 plan.md 供用户确认后再执行。"""
+    from rich.panel import Panel
+    from tangyuan.ui.theme import GOLD
 
+    settings = load_settings(workspace=workspace, model=model)
+    ws = settings.resolve_workspace()
+    print_banner(settings.model, ws)
+    print_dim("[ty.brand]Plan Mode[/] · 只读探索 → 产出计划 → 等待确认")
+    print_dim("[ty.muted]写工具已禁用；agent 只能读、搜、看 git[/]")
+    console.print()
+
+    def on_event(kind: str, **payload) -> None:
+        if kind == "final":
+            if stream_had_text():
+                reset_stream_flag()
+                console.print()
+                return
+            print_final(payload.get("content") or "", model=settings.model)
+            return
+        _on_event(kind, **payload)
+
+    agent = _make_agent(settings, yes=yes, on_event=on_event, read_only=True)
+    # 给 agent 一个强约束的提示，让它产出结构化计划
+    plan_prompt = (
+        f"【任务】{task}\n\n"
+        "你现在处于 Plan Mode：\n"
+        "1) 用只读工具（read_file / list_dir / search_text / search_codebase / git_status 等）"
+        "探索当前 workspace，理解任务涉及的文件与改动范围。\n"
+        "2) 不要尝试写文件 / 跑写操作的 shell / git add / git commit。\n"
+        "3) 探索完后产出结构化计划（Markdown 格式），含：\n"
+        "   - 任务概述\n"
+        "   - 涉及文件（带路径）\n"
+        "   - 计划步骤（带文件 + what/why/how）\n"
+        "   - 风险与权衡\n"
+        "   - 验证步骤\n"
+        "4) 输出计划即可，不要执行任何修改。\n"
+    )
+    try:
+        plan_text = agent.ask(plan_prompt)
+    except Exception as e:  # noqa: BLE001
+        print_err(str(e))
+        raise typer.Exit(1) from e
+
+    # 把计划写到文件
+    if out:
+        plan_path = Path(out).resolve()
+    else:
+        plan_path = ws / ".tangyuan" / "plan.md"
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_path.write_text(plan_text, encoding="utf-8")
+
+    console.print()
+    console.print(
+        Panel(
+            f"计划已写入：[ty.path]{plan_path}[/]\n\n"
+            "请 review；确认后用：\n"
+            "  [ty.accent]tangyuan run \"按 plan.md 执行\" -w <workspace>[/]",
+            title="[ty.brand]Plan Mode 完成[/]",
+            border_style=GOLD,
+            box=ROUNDED,
+            padding=(1, 2),
+        )
+    )
+
+
+@app.command("list-tools")
+def list_tools() -> None:
     tools = build_default_tools(Path(".").resolve())
-    table = Table(title="汤圆内置工具")
-    table.add_column("工具", style="cyan")
-    table.add_column("说明")
+    rows = []
     for schema in tools.schemas():
         fn = schema["function"]
-        table.add_row(fn["name"], fn["description"])
-    console.print(table)
+        desc = fn["description"]
+        if len(desc) > 52:
+            desc = desc[:52] + "…"
+        rows.append((fn["name"], desc))
+    tools_table(rows)
 
 
 @app.command("show-trace")
 def show_trace(path: str = typer.Argument(...)) -> None:
+    from rich.panel import Panel
+    from tangyuan.ui.theme import GOLD
+
     text = open(path, encoding="utf-8").read()
-    console.print(Syntax(text, "json", word_wrap=True))
+    console.print(Panel(text, title=path, border_style=GOLD))
+
+
+@app.command("eval")
+def eval_cmd(
+    skip_network: bool = typer.Option(False, "--skip-network", help="跳过依赖外网的用例"),
+    only: Optional[str] = typer.Option(None, "--only", help="只跑指定 id（逗号分隔）"),
+    report: str = typer.Option("eval_report.md", "--report", "-r", help="报告输出路径"),
+    stop_on_fail: bool = typer.Option(False, "--stop-on-fail", help="首个失败即停"),
+    model: Optional[str] = typer.Option(None, "--model", "-m"),
+) -> None:
+    """跑评测集，输出成功率报告。"""
+    from tangyuan.eval import DEFAULT_CASES, run_eval, save_report
+    from tangyuan.ui.theme import GOLD, JADE, ROSE
+
+    only_ids = None
+    if only:
+        only_ids = [s.strip() for s in only.split(",") if s.strip()]
+
+    console.print()
+    console.print(f"[ty.brand]评测启动[/] · {len(DEFAULT_CASES)} 个用例")
+    if skip_network:
+        console.print("[ty.muted]跳过 network 用例[/]")
+    if only_ids:
+        console.print(f"[ty.muted]仅跑: {', '.join(only_ids)}[/]")
+    console.print()
+
+    def on_progress(res, idx, total) -> None:
+        mark = "[ty.ok]✓[/]" if res.passed else "[ty.err]✗[/]"
+        console.print(
+            f"  {mark} [{idx}/{total}] [ty.tool]{res.case_id}[/] "
+            f"[ty.muted]{res.title}[/]  [ty.muted]{res.duration_sec:.1f}s[/]"
+        )
+
+    result = run_eval(
+        DEFAULT_CASES,
+        model=model,
+        skip_network=skip_network,
+        only=only_ids,
+        stop_on_fail=stop_on_fail,
+        on_progress=on_progress,
+    )
+
+    success_rate = (result.passed / result.total * 100) if result.total else 0
+    console.print()
+    console.print(
+        f"[ty.brand]评测完成[/] · 通过 [ty.ok]{result.passed}[/] / {result.total} "
+        f"· 失败 [ty.err]{result.failed}[/] · 跳过 [ty.muted]{result.skipped}[/] "
+        f"· 耗时 {result.duration_sec:.1f}s"
+    )
+    console.print(
+        f"[ty.brand]成功率[/] · [bold]{success_rate:.1f}%[/]"
+    )
+
+    report_path = Path(report).resolve()
+    save_report(result, report_path, model=model or "")
+    console.print(f"[ty.muted]报告：{report_path}[/]")
+
+    if result.failed > 0:
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

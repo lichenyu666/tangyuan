@@ -22,7 +22,12 @@ dependencies = [
 
 [project.optional-dependencies]
 mcp = ["mcp>=1.0.0; python_version>='3.10'"]
+web = ["gradio>=4.44.0"]
 
+[project.urls]
+Homepage = "https://github.com/lichenyu666/tangyuan"
+Repository = "https://github.com/lichenyu666/tangyuan"
+Demo = "https://huggingface.co/spaces/lichenyu666/tangyuan-demo"
 
 [project.scripts]
 tangyuan = "tangyuan.cli:app"

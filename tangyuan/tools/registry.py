@@ -34,6 +34,10 @@ class ToolRegistry:
         self._specs[spec.name] = spec
         self._handlers[spec.name] = handler
 
+    def unregister(self, name: str) -> None:
+        self._specs.pop(name, None)
+        self._handlers.pop(name, None)
+
     def schemas(self, names: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         if names is None:
             return [s.openai_schema() for s in self._specs.values()]

@@ -10,5 +10,10 @@ __pycache__/
 dist/
 build/
 .tangyuan/
+.trae/
 .DS_Store
 *.log
+output/
+.idea/
+.vscode/
+*.pptx

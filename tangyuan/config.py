@@ -34,6 +34,10 @@ class Settings(BaseSettings):
         description="OpenAI 兼容 Base URL",
     )
     model: str = Field(default="deepseek-chat")
+    embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="语义检索用的 embedding 模型名",
+    )
     max_steps: int = Field(default=30, ge=1, le=100)
     workspace: Path = Field(default=Path("."))
     temperature: float = Field(default=0.2, ge=0, le=2)

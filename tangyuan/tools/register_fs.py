@@ -8,7 +8,7 @@ from tangyuan.tools.fs import apply_patch, list_dir, read_file, search_text, wri
 from tangyuan.tools.registry import ToolSpec
 
 
-def register_fs_tools(reg, ctx: ToolContext) -> None:
+def register_fs_tools(reg, ctx: ToolContext, *, read_only: bool = False) -> None:
     workspace = ctx.workspace
 
     reg.register(
@@ -45,73 +45,74 @@ def register_fs_tools(reg, ctx: ToolContext) -> None:
         ),
     )
 
-    def write_handler(args: Dict[str, Any]) -> str:
-        path = args["path"]
-        content = args["content"]
-        if ctx.confirm_writes and ctx.confirm is not None:
-            preview = content if len(content) <= 400 else content[:400] + "\n…(truncated)"
-            if not ctx.need_confirm("写入文件", f"{path}\n\n{preview}"):
-                return json.dumps({"ok": False, "error": "用户取消"}, ensure_ascii=False)
-        return write_file(workspace, path, content)
+    if not read_only:
+        def write_handler(args: Dict[str, Any]) -> str:
+            path = args["path"]
+            content = args["content"]
+            if ctx.confirm_writes and ctx.confirm is not None:
+                preview = content if len(content) <= 400 else content[:400] + "\n…(truncated)"
+                if not ctx.need_confirm("写入文件", f"{path}\n\n{preview}"):
+                    return json.dumps({"ok": False, "error": "用户取消"}, ensure_ascii=False)
+            return write_file(workspace, path, content)
 
-    reg.register(
-        ToolSpec(
-            name="write_file",
-            description=(
-                "写入/覆盖整个文本文件（workspace 内）。"
-                "局部修改请优先用 apply_patch，避免整文件覆盖。"
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "content": {"type": "string"},
+        reg.register(
+            ToolSpec(
+                name="write_file",
+                description=(
+                    "写入/覆盖整个文本文件（workspace 内）。"
+                    "局部修改请优先用 apply_patch，避免整文件覆盖。"
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "content": {"type": "string"},
+                    },
+                    "required": ["path", "content"],
                 },
-                "required": ["path", "content"],
-            },
-        ),
-        write_handler,
-    )
-
-    def patch_handler(args: Dict[str, Any]) -> str:
-        path = args["path"]
-        old = args.get("old_string") or ""
-        new = args.get("new_string")
-        if new is None:
-            return json.dumps({"ok": False, "error": "缺少 new_string"}, ensure_ascii=False)
-        if ctx.confirm_writes and ctx.confirm is not None:
-            detail = f"{path}\n--- old ---\n{old[:300]}\n--- new ---\n{str(new)[:300]}"
-            if not ctx.need_confirm("应用补丁 apply_patch", detail):
-                return json.dumps({"ok": False, "error": "用户取消"}, ensure_ascii=False)
-        return apply_patch(
-            workspace,
-            path,
-            old,
-            str(new),
-            replace_all=bool(args.get("replace_all")),
+            ),
+            write_handler,
         )
 
-    reg.register(
-        ToolSpec(
-            name="apply_patch",
-            description=(
-                "精确替换文件中的一段文本（改代码首选）。"
-                "old_string 必须能唯一匹配；找不到或匹配多处会失败。"
-                "replace_all=true 时替换全部相同片段。"
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string"},
-                    "old_string": {"type": "string"},
-                    "new_string": {"type": "string"},
-                    "replace_all": {"type": "boolean", "default": False},
+        def patch_handler(args: Dict[str, Any]) -> str:
+            path = args["path"]
+            old = args.get("old_string") or ""
+            new = args.get("new_string")
+            if new is None:
+                return json.dumps({"ok": False, "error": "缺少 new_string"}, ensure_ascii=False)
+            if ctx.confirm_writes and ctx.confirm is not None:
+                detail = f"{path}\n--- old ---\n{old[:300]}\n--- new ---\n{str(new)[:300]}"
+                if not ctx.need_confirm("应用补丁 apply_patch", detail):
+                    return json.dumps({"ok": False, "error": "用户取消"}, ensure_ascii=False)
+            return apply_patch(
+                workspace,
+                path,
+                old,
+                str(new),
+                replace_all=bool(args.get("replace_all")),
+            )
+
+        reg.register(
+            ToolSpec(
+                name="apply_patch",
+                description=(
+                    "精确替换文件中的一段文本（改代码首选）。"
+                    "old_string 必须能唯一匹配；找不到或匹配多处会失败。"
+                    "replace_all=true 时替换全部相同片段。"
+                ),
+                parameters={
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "old_string": {"type": "string"},
+                        "new_string": {"type": "string"},
+                        "replace_all": {"type": "boolean", "default": False},
+                    },
+                    "required": ["path", "old_string", "new_string"],
                 },
-                "required": ["path", "old_string", "new_string"],
-            },
-        ),
-        patch_handler,
-    )
+            ),
+            patch_handler,
+        )
 
     reg.register(
         ToolSpec(

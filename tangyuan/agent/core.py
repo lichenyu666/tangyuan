@@ -12,6 +12,7 @@ from tangyuan.hooks import HookDecision, build_default_hooks
 from tangyuan.memory import (
     append_daily_log,
     append_history,
+    append_tokens,
     estimate_messages_chars,
     record_usage_from_response,
     write_memory,
@@ -243,33 +244,28 @@ class TangyuanAgent:
             self.on_event("step", step=step, max_steps=self.settings.max_steps)
             self.trace.log("step", step=step)
 
-            resp = self.client.chat.completions.create(
-                model=self.settings.model,
-                messages=self.messages,
-                tools=self.tools.schemas(),
-                tool_choice="auto",
-                temperature=self.settings.temperature,
-            )
-            record_usage_from_response(
-                resp,
-                model=self.settings.model,
-                workspace=str(self.settings.resolve_workspace()),
-            )
-            msg = resp.choices[0].message
-            raw_tool_calls = msg.tool_calls or []
+            content_buf, raw_tool_calls, usage = self._stream_completion()
+            if usage is not None:
+                append_tokens(
+                    model=self.settings.model,
+                    prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0,
+                    completion_tokens=getattr(usage, "completion_tokens", 0) or 0,
+                    total_tokens=getattr(usage, "total_tokens", 0) or 0,
+                    workspace=str(self.settings.resolve_workspace()),
+                )
 
             assistant_msg: Dict[str, Any] = {
                 "role": "assistant",
-                "content": msg.content or "",
+                "content": content_buf or "",
             }
             if raw_tool_calls:
                 assistant_msg["tool_calls"] = [
                     {
-                        "id": tc.id,
+                        "id": tc["id"],
                         "type": "function",
                         "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments or "{}",
+                            "name": tc["function"]["name"],
+                            "arguments": tc["function"]["arguments"] or "{}",
                         },
                     }
                     for tc in raw_tool_calls
@@ -277,7 +273,8 @@ class TangyuanAgent:
             self.messages.append(assistant_msg)
 
             if not raw_tool_calls:
-                final_text = (msg.content or "").strip()
+                final_text = (content_buf or "").strip()
+                self.on_event("stream_end")
                 stop_ctx: Dict[str, Any] = {
                     "reply": final_text,
                     "plan": self.plan,
@@ -324,14 +321,13 @@ class TangyuanAgent:
                 )
                 break
 
-            if msg.content:
-                self.on_event("assistant_delta", content=msg.content)
+            self.on_event("stream_end")
 
             for tc in raw_tool_calls:
-                name = tc.function.name
+                name = tc["function"]["name"]
                 args: Dict[str, Any] = {}
                 try:
-                    args = json.loads(tc.function.arguments or "{}")
+                    args = json.loads(tc["function"]["arguments"] or "{}")
                 except json.JSONDecodeError:
                     result = json.dumps(
                         {"ok": False, "error": "工具参数不是合法 JSON"},
@@ -344,7 +340,7 @@ class TangyuanAgent:
                 self.messages.append(
                     {
                         "role": "tool",
-                        "tool_call_id": tc.id,
+                        "tool_call_id": tc["id"],
                         "content": result,
                     }
                 )
@@ -373,6 +369,61 @@ class TangyuanAgent:
 
         self.trace.log("summary", **self.trace.summary())
         return final_text
+
+    def _stream_completion(self) -> tuple[str, list, Any]:
+        """
+        流式调用 LLM，累积 content 与 tool_calls，逐 delta 推到 UI。
+        返回 (content, tool_calls, usage)。
+        """
+        stream = self.client.chat.completions.create(
+            model=self.settings.model,
+            messages=self.messages,
+            tools=self.tools.schemas(),
+            tool_choice="auto",
+            temperature=self.settings.temperature,
+            stream=True,
+            stream_options={"include_usage": True},
+        )
+
+        content_buf = ""
+        tool_calls_buf: Dict[int, Dict[str, Any]] = {}
+        usage_obj: Any = None
+        started = False
+
+        for chunk in stream:
+            if getattr(chunk, "usage", None):
+                usage_obj = chunk.usage
+            choices = getattr(chunk, "choices", None) or []
+            if not choices:
+                continue
+            delta = choices[0].delta
+            piece = getattr(delta, "content", None)
+            if piece:
+                if not started:
+                    started = True
+                    self.on_event("stream_start")
+                content_buf += piece
+                self.on_event("stream_delta", delta=piece)
+            tc_deltas = getattr(delta, "tool_calls", None) or []
+            for tc in tc_deltas:
+                idx = tc.index
+                if idx not in tool_calls_buf:
+                    tool_calls_buf[idx] = {
+                        "id": "",
+                        "type": "function",
+                        "function": {"name": "", "arguments": ""},
+                    }
+                if tc.id:
+                    tool_calls_buf[idx]["id"] = tc.id
+                fn = tc.function
+                if fn is not None:
+                    if fn.name:
+                        tool_calls_buf[idx]["function"]["name"] += fn.name
+                    if fn.arguments:
+                        tool_calls_buf[idx]["function"]["arguments"] += fn.arguments
+
+        raw_tool_calls = [tool_calls_buf[k] for k in sorted(tool_calls_buf)]
+        return content_buf, raw_tool_calls, usage_obj
 
     def _invoke_tool(self, name: str, args: Dict[str, Any]) -> str:
         """工具调用走 Hook：before → call → after。"""

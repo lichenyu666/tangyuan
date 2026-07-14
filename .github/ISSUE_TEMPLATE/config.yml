@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 个人主页
+    url: https://lichenyu.fun
+    about: 作者主页与项目入口
+  - name: Discussions
+    url: https://github.com/lichenyu666/tangyuan/discussions
+    about: 提问、分享用法、闲聊

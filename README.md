@@ -4,6 +4,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![CI](https://github.com/lichenyu666/tangyuan/actions/workflows/ci.yml/badge.svg)](https://github.com/lichenyu666/tangyuan/actions/workflows/ci.yml)
+
+作者主页：[lichenyu.fun](https://lichenyu.fun) · 讨论区：[Discussions](https://github.com/lichenyu666/tangyuan/discussions) · 参与开发：[CONTRIBUTING](CONTRIBUTING.md)
 
 ## 它能做什么
 
@@ -60,6 +63,19 @@ MCP 可选依赖：
 pip install -e '.[mcp]'
 ```
 
+## 举例
+
+```text
+帮我搜一下 LangGraph 官方文档，并打开链接
+根据 README 做个 3 页 PPT，保存到 output/intro.pptx
+@README.md 用中文总结这个项目
+```
+
+```bash
+tangyuan plan "先摸清这个仓库结构再给改动建议" -w .
+tangyuan run "总结当前仓库" -w .
+```
+
 ## 工程分层
 
 ```text
@@ -102,3 +118,5 @@ tangyuan/
 ## License
 
 [MIT](LICENSE) © li_chenyu
+
+安全说明见 [SECURITY.md](SECURITY.md)。欢迎提 Issue / PR。

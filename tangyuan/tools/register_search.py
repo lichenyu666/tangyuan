@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from tangyuan.tools.registry import ToolRegistry, ToolSpec
 from tangyuan.tools.semantic import SemanticIndex, fallback_text_search
@@ -21,7 +21,7 @@ def register_search_tools(
 ) -> None:
     """注册语义检索工具。client 是 OpenAI() 实例；不传则降级为文本搜索。"""
     # 每个进程持有一个索引实例；懒初始化
-    _index: Optional[SemanticIndex] = None
+    _index: SemanticIndex | None = None
 
     def _get_index() -> SemanticIndex:
         nonlocal _index
@@ -29,7 +29,7 @@ def register_search_tools(
             _index = SemanticIndex(workspace, client=client, model=embedding_model)
         return _index
 
-    def search_handler(args: Dict[str, Any]) -> str:
+    def search_handler(args: dict[str, Any]) -> str:
         query = (args.get("query") or "").strip()
         if not query:
             return json.dumps({"ok": False, "error": "query 不能为空"}, ensure_ascii=False)
@@ -119,7 +119,7 @@ def register_search_tools(
         search_handler,
     )
 
-    def index_stats_handler(args: Dict[str, Any]) -> str:
+    def index_stats_handler(args: dict[str, Any]) -> str:
         try:
             idx = _get_index()
             return json.dumps({"ok": True, "stats": idx.stats()}, ensure_ascii=False)

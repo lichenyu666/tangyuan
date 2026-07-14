@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from tangyuan.agent.plan import TaskPlan
 from tangyuan.tools.registry import ToolRegistry, ToolSpec
 
 
 def register_plan_tools(reg: ToolRegistry, plan: TaskPlan) -> None:
-    def _update_plan(args: Dict[str, Any]) -> str:
+    def _update_plan(args: dict[str, Any]) -> str:
         items = args.get("items")
         if not isinstance(items, list):
             return json.dumps(
@@ -78,7 +78,7 @@ def register_plan_tools(reg: ToolRegistry, plan: TaskPlan) -> None:
     )
 
 
-def ensure_plan_tool(reg: ToolRegistry, plan: Optional[TaskPlan]) -> None:
+def ensure_plan_tool(reg: ToolRegistry, plan: TaskPlan | None) -> None:
     """用会话内 TaskPlan 绑定（或覆盖）update_plan。"""
     if plan is None:
         return

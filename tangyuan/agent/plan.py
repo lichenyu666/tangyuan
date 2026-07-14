@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 PlanStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 VALID_STATUSES = frozenset({"pending", "in_progress", "completed", "cancelled"})
@@ -15,7 +15,7 @@ class PlanItem:
     content: str
     status: PlanStatus = "pending"
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         return asdict(self)
 
 
@@ -23,22 +23,22 @@ class PlanItem:
 class TaskPlan:
     """会话内任务板（不持久化；/clear 或新 Agent 会清空）。"""
 
-    items: List[PlanItem] = field(default_factory=list)
+    items: list[PlanItem] = field(default_factory=list)
 
     def clear(self) -> None:
         self.items = []
 
-    def to_dicts(self) -> List[Dict[str, str]]:
+    def to_dicts(self) -> list[dict[str, str]]:
         return [i.to_dict() for i in self.items]
 
-    def replace(self, raw_items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def replace(self, raw_items: list[dict[str, Any]]) -> dict[str, Any]:
         parsed, err = _parse_items(raw_items)
         if err:
             return {"ok": False, "error": err}
         self.items = parsed
         return self._ok_payload("replaced")
 
-    def merge(self, raw_items: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def merge(self, raw_items: list[dict[str, Any]]) -> dict[str, Any]:
         parsed, err = _parse_items(raw_items)
         if err:
             return {"ok": False, "error": err}
@@ -59,7 +59,7 @@ class TaskPlan:
         self.items = merged
         return self._ok_payload("merged")
 
-    def open_items(self) -> List[PlanItem]:
+    def open_items(self) -> list[PlanItem]:
         return [i for i in self.items if i.status in ("pending", "in_progress")]
 
     def progress_key(self) -> tuple:
@@ -76,7 +76,7 @@ class TaskPlan:
             return "(无未完成项)"
         return " | ".join(f"{i.status}:{i.id}:{i.content}" for i in open_items)
 
-    def _ok_payload(self, action: str) -> Dict[str, Any]:
+    def _ok_payload(self, action: str) -> dict[str, Any]:
         return {
             "ok": True,
             "action": action,
@@ -112,10 +112,10 @@ class TaskPlan:
         return " | ".join(parts)
 
 
-def _parse_items(raw_items: List[Dict[str, Any]]) -> tuple[List[PlanItem], Optional[str]]:
+def _parse_items(raw_items: list[dict[str, Any]]) -> tuple[list[PlanItem], str | None]:
     if not isinstance(raw_items, list) or not raw_items:
         return [], "items 必须是非空数组"
-    parsed: List[PlanItem] = []
+    parsed: list[PlanItem] = []
     seen: set[str] = set()
     in_progress = 0
     for i, raw in enumerate(raw_items):

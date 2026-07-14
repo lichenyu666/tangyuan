@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from openai import OpenAI
 
@@ -26,7 +26,7 @@ _BLOCKED = frozenset(
     }
 )
 
-SUBAGENT_SPECS: Dict[str, Dict[str, Any]] = {
+SUBAGENT_SPECS: dict[str, dict[str, Any]] = {
     "explore": {
         "title": "探索助手",
         "duty": "只读探索代码与目录，汇总结构与关键文件，不改文件。",
@@ -72,7 +72,7 @@ SUBAGENT_SPECS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def _system_prompt(spec: Dict[str, Any], purpose: str) -> str:
+def _system_prompt(spec: dict[str, Any], purpose: str) -> str:
     purpose_line = f"\n本次目的：{purpose}" if purpose else ""
     return (
         f"你是汤圆的子代理「{spec['title']}」。\n"
@@ -92,14 +92,14 @@ def run_subagent(
     task: str,
     agent_type: str = "explore",
     purpose: str = "",
-    max_turns: Optional[int] = None,
+    max_turns: int | None = None,
 ) -> str:
     spec = SUBAGENT_SPECS.get(agent_type) or SUBAGENT_SPECS["explore"]
     allowed = [t for t in spec["tools"] if t in parent_tools.names() and t not in _BLOCKED]
     turns = max_turns or int(spec["max_turns"])
 
     client = OpenAI(api_key=settings.api_key, base_url=settings.base_url)
-    messages: List[Dict[str, Any]] = [
+    messages: list[dict[str, Any]] = [
         {"role": "system", "content": _system_prompt(spec, purpose)},
         {"role": "user", "content": task},
     ]
@@ -107,7 +107,7 @@ def run_subagent(
 
     final = ""
     for _ in range(turns):
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "model": settings.model,
             "messages": messages,
             "temperature": settings.temperature,
@@ -123,7 +123,7 @@ def run_subagent(
         )
         msg = resp.choices[0].message
         tool_calls = msg.tool_calls or []
-        assistant: Dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
+        assistant: dict[str, Any] = {"role": "assistant", "content": msg.content or ""}
         if tool_calls:
             assistant["tool_calls"] = [
                 {

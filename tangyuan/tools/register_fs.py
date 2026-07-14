@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tangyuan.tools.context import ToolContext
 from tangyuan.tools.fs import apply_patch, list_dir, read_file, search_text, write_file
@@ -46,7 +46,7 @@ def register_fs_tools(reg, ctx: ToolContext, *, read_only: bool = False) -> None
     )
 
     if not read_only:
-        def write_handler(args: Dict[str, Any]) -> str:
+        def write_handler(args: dict[str, Any]) -> str:
             path = args["path"]
             content = args["content"]
             if ctx.confirm_writes and ctx.confirm is not None:
@@ -74,7 +74,7 @@ def register_fs_tools(reg, ctx: ToolContext, *, read_only: bool = False) -> None
             write_handler,
         )
 
-        def patch_handler(args: Dict[str, Any]) -> str:
+        def patch_handler(args: dict[str, Any]) -> str:
             path = args["path"]
             old = args.get("old_string") or ""
             new = args.get("new_string")

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _env_file_candidates() -> Tuple[Path, ...]:
+def _env_file_candidates() -> tuple[Path, ...]:
     """按优先级查找 .env：当前目录 → ~/.tangyuan → 仓库根目录。"""
     return (
         Path.cwd() / ".env",
@@ -16,7 +15,7 @@ def _env_file_candidates() -> Tuple[Path, ...]:
     )
 
 
-def resolve_env_files() -> Tuple[str, ...]:
+def resolve_env_files() -> tuple[str, ...]:
     return tuple(str(p) for p in _env_file_candidates() if p.is_file())
 
 
@@ -60,9 +59,9 @@ class Settings(BaseSettings):
 
 
 def load_settings(
-    workspace: Optional[str] = None,
-    model: Optional[str] = None,
-    max_steps: Optional[int] = None,
+    workspace: str | None = None,
+    model: str | None = None,
+    max_steps: int | None = None,
 ) -> Settings:
     s = Settings()
     if workspace:

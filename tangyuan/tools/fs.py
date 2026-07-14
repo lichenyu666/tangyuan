@@ -5,9 +5,10 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from tangyuan.tools.paths import any_existing_path, workspace_path
+
 
 def list_dir(workspace: Path, rel: str) -> str:
     if rel in (".", ""):
@@ -118,7 +119,7 @@ def search_text(
     rel: str,
     max_hits: int,
     *,
-    glob: Optional[str] = None,
+    glob: str | None = None,
     context: int = 0,
     use_regex: bool = True,
 ) -> str:
@@ -144,7 +145,7 @@ def search_text_rg(
     root: Path,
     max_hits: int,
     *,
-    glob: Optional[str],
+    glob: str | None,
     context: int,
     use_regex: bool,
 ) -> str:
@@ -167,7 +168,7 @@ def search_text_rg(
             {"ok": False, "error": (proc.stderr or "rg 失败")[:500], "engine": "rg"},
             ensure_ascii=False,
         )
-    hits: List[Dict[str, Any]] = []
+    hits: list[dict[str, Any]] = []
     for line in (proc.stdout or "").splitlines():
         if len(hits) >= max_hits:
             break
@@ -193,11 +194,11 @@ def search_text_python(
     root: Path,
     max_hits: int,
     *,
-    glob: Optional[str],
+    glob: str | None,
     context: int,
     use_regex: bool,
 ) -> str:
-    hits: List[Dict[str, Any]] = []
+    hits: list[dict[str, Any]] = []
     skip_dirs = {".git", ".venv", "venv", "__pycache__", "node_modules", ".tangyuan"}
     try:
         matcher = re.compile(query) if use_regex else None
@@ -209,7 +210,7 @@ def search_text_python(
             return bool(matcher.search(line))
         return query in line
 
-    paths: List[Path]
+    paths: list[Path]
     if root.is_file():
         paths = [root]
     else:

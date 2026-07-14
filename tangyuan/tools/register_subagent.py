@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tangyuan.agent.subagent import SUBAGENT_SPECS, list_subagent_types, run_subagent
 from tangyuan.config import Settings
@@ -16,7 +16,7 @@ def register_subagent_tools(
     settings: Settings,
     parent_tools: ToolRegistry,
 ) -> None:
-    def _dispatch(args: Dict[str, Any]) -> str:
+    def _dispatch(args: dict[str, Any]) -> str:
         task = (args.get("task") or "").strip()
         if not task:
             return json.dumps({"ok": False, "error": "缺少 task"}, ensure_ascii=False)

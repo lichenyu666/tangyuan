@@ -2,21 +2,18 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from tangyuan.config import load_settings
-from tangyuan.tools import build_default_tools
-from tangyuan.tools.registry import ToolRegistry
-from tangyuan.trace import TraceLogger
-
 from tangyuan.eval.assertions import Assertion, AssertResult
-
+from tangyuan.tools import build_default_tools
+from tangyuan.trace import TraceLogger
 
 # 用例 setup：在临时 workspace 里准备文件
 SetupFn = Callable[[Path], None]
@@ -27,11 +24,11 @@ class EvalCase:
     id: str
     title: str
     prompt: str
-    assertions: List[Assertion]
-    setup: Optional[SetupFn] = None
+    assertions: list[Assertion]
+    setup: SetupFn | None = None
     network: bool = False  # 是否依赖外网
     timeout_seconds: int = 120
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -40,9 +37,9 @@ class CaseResult:
     title: str
     passed: bool
     duration_sec: float
-    assertions: List[Dict[str, Any]] = field(default_factory=list)
+    assertions: list[dict[str, Any]] = field(default_factory=list)
     reply: str = ""
-    error: Optional[str] = None
+    error: str | None = None
 
 
 @dataclass
@@ -52,7 +49,7 @@ class EvalResult:
     failed: int
     skipped: int
     duration_sec: float
-    cases: List[CaseResult] = field(default_factory=list)
+    cases: list[CaseResult] = field(default_factory=list)
 
 
 def _setup_workspace(case: EvalCase, tmpdir: Path) -> None:
@@ -87,10 +84,10 @@ def _make_silent_event() -> Callable:
     return lambda *_a, **_k: None
 
 
-def run_single(case: EvalCase, *, model: Optional[str] = None, yes: bool = True) -> CaseResult:
+def run_single(case: EvalCase, *, model: str | None = None, yes: bool = True) -> CaseResult:
     """跑单个用例。"""
-    from tangyuan.agent import TangyuanAgent  # 延迟导入，避免循环
     import tangyuan.memory.paths as mem_paths
+    from tangyuan.agent import TangyuanAgent  # 延迟导入，避免循环
 
     start = time.time()
     tmpdir = Path(tempfile.mkdtemp(prefix=f"ty_eval_{case.id}_"))
@@ -126,7 +123,7 @@ def run_single(case: EvalCase, *, model: Optional[str] = None, yes: bool = True)
             )
 
         # 跑断言
-        assertions_meta: List[Dict[str, Any]] = []
+        assertions_meta: list[dict[str, Any]] = []
         all_pass = True
         for idx, assertion in enumerate(case.assertions):
             try:
@@ -157,17 +154,17 @@ def run_single(case: EvalCase, *, model: Optional[str] = None, yes: bool = True)
 
 
 def run_eval(
-    cases: List[EvalCase],
+    cases: list[EvalCase],
     *,
-    model: Optional[str] = None,
+    model: str | None = None,
     skip_network: bool = False,
-    only: Optional[List[str]] = None,
+    only: list[str] | None = None,
     stop_on_fail: bool = False,
-    on_progress: Optional[Callable[[CaseResult, int, int], None]] = None,
+    on_progress: Callable[[CaseResult, int, int], None] | None = None,
 ) -> EvalResult:
     """跑评测集，返回汇总。"""
     start = time.time()
-    results: List[CaseResult] = []
+    results: list[CaseResult] = []
     skipped = 0
     for i, case in enumerate(cases, 1):
         if only and case.id not in only:
@@ -205,7 +202,7 @@ def run_eval(
 
 def render_report(result: EvalResult, *, model: str = "") -> str:
     """渲染 markdown 报告。"""
-    lines: List[str] = []
+    lines: list[str] = []
     lines.append("# 汤圆评测报告")
     lines.append("")
     if model:

@@ -14,11 +14,20 @@ cp .env.example .env   # 填入自己的 API Key，勿提交
 tangyuan
 ```
 
+## 本地检查
+
+```bash
+pip install -e '.[dev]'
+ruff check .      # 代码风格
+pytest -q         # 无需 API Key 的单元测试
+```
+
 ## 提 PR 前
 
 1. 改动尽量小而清晰，说明「为什么」
 2. 不要提交 `.env`、密钥、本机绝对路径
-3. 能跑通：`tangyuan --help`；若改工具/Agent，请本地对话验证一下
+3. `ruff check .` 与 `pytest -q` 通过；若改工具/Agent，请本地对话验证一下
+4. 架构与设计取舍见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ## 提 Issue
 

@@ -14,7 +14,6 @@ import threading
 import time
 from collections import defaultdict, deque
 from pathlib import Path
-from typing import Deque, Dict, List, Optional, Tuple
 
 from tangyuan.agent import TangyuanAgent
 from tangyuan.config import load_settings
@@ -30,9 +29,9 @@ _SESSION_TTL_SEC = 45 * 60
 _repo_root = Path(__file__).resolve().parent.parent.parent
 _DEFAULT_WORKSPACE = _repo_root / "demo_workspace"
 
-_sessions: Dict[str, Tuple[TangyuanAgent, float]] = {}
-_session_msg_count: Dict[str, int] = defaultdict(int)
-_rate_buckets: Dict[str, Deque[float]] = defaultdict(deque)
+_sessions: dict[str, tuple[TangyuanAgent, float]] = {}
+_session_msg_count: dict[str, int] = defaultdict(int)
+_rate_buckets: dict[str, deque[float]] = defaultdict(deque)
 _lock = threading.Lock()
 
 
@@ -96,7 +95,7 @@ def _format_tool_line(name: str, preview: str) -> str:
     return f"`{name}` → {preview}" if preview else f"`{name}`"
 
 
-def chat(message: str, history: List, request=None) -> str:
+def chat(message: str, history: list, request=None) -> str:
     """Gradio ChatInterface 回调。"""
     text = (message or "").strip()
     if not text:
@@ -120,8 +119,8 @@ def chat(message: str, history: List, request=None) -> str:
             "刷新页面可开新会话；完整能力请本地安装：https://github.com/lichenyu666/tangyuan"
         )
 
-    tool_lines: List[str] = []
-    answer_parts: List[str] = []
+    tool_lines: list[str] = []
+    answer_parts: list[str] = []
 
     def on_event(kind: str, **payload) -> None:
         if kind == "tool_call":

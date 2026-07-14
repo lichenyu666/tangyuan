@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Tuple
 
-def extract_attachments(user_text: str, workspace: Path) -> Tuple[str, List[Path]]:
+
+def extract_attachments(user_text: str, workspace: Path) -> tuple[str, list[Path]]:
     """支持 @path 与拖入的绝对路径（终端拖文件会粘贴路径）。"""
-    paths: List[Path] = []
+    paths: list[Path] = []
     # @file or @"path with spaces"
     for m in re.finditer(r'@(?:"([^"]+)"|(\S+))', user_text):
         raw = m.group(1) or m.group(2)
@@ -23,7 +23,7 @@ def extract_attachments(user_text: str, workspace: Path) -> Tuple[str, List[Path
             paths.append(p)
 
     # 去重
-    uniq: List[Path] = []
+    uniq: list[Path] = []
     for p in paths:
         if p not in uniq:
             uniq.append(p)

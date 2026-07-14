@@ -1,122 +1,167 @@
+<div align="center">
+
 # 汤圆 Tangyuan
 
-**终端里的通用 Agent** — 独立实现的多工具闭环助手（读改文件、跑命令、搜网页、任务规划、子代理、MCP）。
+**从零自研的终端通用 Agent** · A general-purpose coding & task agent in your terminal
+
+在终端里对话，让 Agent 自主规划、调用工具、读改代码、跑命令、搜网页——独立实现的多工具闭环，不依赖任何 Agent 框架。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/lichenyu666/tangyuan/actions/workflows/ci.yml/badge.svg)](https://github.com/lichenyu666/tangyuan/actions/workflows/ci.yml)
+[![Code style: ruff](https://img.shields.io/badge/lint-ruff-46a2f1.svg)](https://github.com/astral-sh/ruff)
 
-作者主页：[lichenyu.fun](https://lichenyu.fun) · 讨论区：[Discussions](https://github.com/lichenyu666/tangyuan/discussions) · 参与开发：[CONTRIBUTING](CONTRIBUTING.md)
+[快速开始](#快速开始) · [架构设计](#架构设计) · [工程亮点](#工程亮点) · [完整文档](docs/ARCHITECTURE.md)
 
-## 它能做什么
+</div>
 
-| 能力 | 说明 |
-|------|------|
-| 任务规划 | `update_plan` + Stop Gate，复杂多步不半途而废 |
-| 子代理 / Team | `dispatch_subagent`、队友 inbox / broadcast |
-| MCP | 默认内置 time server；可接更多 stdio MCP |
-| 文件与命令 | 读/写/搜文件、`apply_patch`、受控 `run_shell` |
-| 网页 | `web_search` / `fetch_url` |
-| Skills | 渐进披露：摘要进提示，匹配后再 `load_skill` |
-| 长期记忆 | MEMORY + 日记 + history / tokens 计量 |
-| Trace | `.tangyuan/traces/*.jsonl` 可复盘 |
+---
+
+## 这是什么
+
+汤圆是一个 **约 7500 行 Python** 的终端 Agent 框架，兼容任意 OpenAI 风格接口（DeepSeek / 通义 / OpenAI / 本地网关）。它把「大模型 + 工具循环 + 记忆 + 安全边界」这套 Agent 核心能力**从底层自研实现**，而非调用 LangChain / LangGraph 等现成框架——目的就是完整走通并掌握一个生产级 Agent 的每一层。
+
+```text
+你：帮我看下这个仓库的结构，找出 apply_patch 的实现并解释
+汤圆：[list_dir] → [search_codebase] → [read_file] → 流式给出解释
+      并在需要时自动拆解任务、调用子代理、跨会话记住结论
+```
+
+## 核心特性
+
+| 维度 | 能力 |
+| --- | --- |
+| **自主工具循环** | 单次任务最多 30 步的 ReAct 式循环；流式输出边想边说 |
+| **35+ 内置工具** | 文件读写 / `apply_patch` 精准改码 / 受控 shell / git / 语义检索 / 网页搜索抓取 / PPT 生成 |
+| **上下文工程** | 会话自动压缩（超阈值归档旧轮次）+ 项目结论蒸馏，长对话不爆 token |
+| **结构化任务规划** | `update_plan` 任务板 + Stop Gate 门禁：计划没做完不许收工，空转自动纠偏 |
+| **子代理 & 多智能体** | `explore / research / coder` 子代理独立上下文；可派生队友、收发消息、广播 |
+| **分层长期记忆** | 全局画像 / 项目笔记 / 按日日记 / 对话历史 / Token 计量，跨会话可召回 |
+| **Skills 渐进披露** | 系统提示只放技能摘要，命中意图后再按需加载全文，省 token |
+| **MCP 协议** | 内置 stdio MCP Client 与 time server，可扩展外部 MCP 生态 |
+| **可插拔 Hooks** | 输出截断 / 写操作审计 / 计划收工门禁，围绕工具生命周期扩展 |
+| **安全边界** | 交互二次确认、危险命令硬拦截、写操作限定 workspace、只读 Plan 模式 |
+
+## 架构设计
+
+```mermaid
+flowchart TB
+  user["用户输入 / @文件附件"] --> cli["CLI (Typer + Rich)"]
+  cli --> agent["TangyuanAgent · 工具循环"]
+
+  subgraph core [Agent 核心]
+    agent --> stream["流式补全 OpenAI 兼容"]
+    agent --> planner["TaskPlan · Stop Gate · stall 检测"]
+    agent --> ctx["上下文工程 · compact / distill"]
+  end
+
+  agent --> hooks["Hooks · before/after/stop"]
+  agent --> tools["ToolRegistry"]
+
+  subgraph toolset [工具集]
+    tools --> fs["fs / shell / git"]
+    tools --> search["语义检索 / 网页"]
+    tools --> sub["子代理 / Agent Team"]
+    tools --> mcp["MCP Client"]
+  end
+
+  agent --> mem["分层记忆 MEMORY / 日记 / history / tokens"]
+  agent --> trace["Trace 落盘 · 可复盘"]
+  tools --> llm["LLM API"]
+  stream --> llm
+```
+
+工程分层（`tangyuan/`）：
+
+```text
+agent/     Agent 核心循环、任务计划、子代理、Agent Team   (~1.3k 行)
+tools/     工具注册与实现：fs/shell/git/search/mcp/...     (~2.7k 行, 最大模块)
+memory/    分层记忆存储与召回                              (~570 行)
+skills/    Skill 渐进披露加载器 + 内置剧本
+mcp/       stdio MCP 客户端 + 内置 time server
+hooks/     工具/停止生命周期钩子
+prompts/   人设/准则/压缩/蒸馏提示词 + 组装器
+ui/        Rich 终端渲染与主题
+eval/      20 例端到端评测（隔离 workspace + 断言）
+cli.py     命令行入口与交互 REPL
+```
+
+> 更细的模块职责、Agent 循环时序与设计取舍见 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**。
+
+## 工程亮点
+
+这个项目刻意覆盖了一个「真实可用的 Agent」需要处理的硬问题：
+
+- **上下文不爆**：实现会话压缩（旧轮次 LLM 摘要归档）+ 项目蒸馏（提炼稳定事实入库），而不是简单截断历史。
+- **不半途而废**：`PlanStopGateHook` 在模型想结束时检查未完成任务并阻断收工；`stall` 检测在连续 8 步无进展时注入纠偏提示。
+- **精准改码**：`apply_patch` 支持基于上下文的补丁式编辑，而非整文件覆盖。
+- **安全优先**：写操作限定 workspace、危险 shell（`rm -rf /`、`curl|sh` 等）硬拒绝、交互式二次确认、以及供公开演示用的只读工具白名单。
+- **可观测**：每次运行落 `trace` JSONL，写操作留审计日志，Token 用量单独计量，方便复盘与成本分析。
+- **抽象干净**：`ToolRegistry + ToolSpec(Pydantic)` 自动生成 OpenAI function schema；新增工具只需注册一个 spec + handler。
 
 ## 快速开始
-
-需要 Python ≥ 3.10，以及任意 **OpenAI 兼容** API（DeepSeek / 通义 / OpenAI / 本地网关）。
 
 ```bash
 git clone https://github.com/lichenyu666/tangyuan.git
 cd tangyuan
 python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -e .
 
-cp .env.example .env
-# 编辑 .env，填入 TANGYUAN_API_KEY / TANGYUAN_BASE_URL / TANGYUAN_MODEL
-
-tangyuan
+cp .env.example .env                 # 填入 TANGYUAN_API_KEY / BASE_URL / MODEL
+tangyuan                             # 进入交互式对话
 ```
 
-单次任务：
+常用姿势：
 
 ```bash
-tangyuan run "总结当前仓库" -w .
+tangyuan run "总结当前仓库" -w .                 # 一次性任务
+tangyuan plan "先摸清结构再给改动建议" -w .       # 只读 Plan 模式，产出 plan.md
+tangyuan eval --skip-network                     # 跑内置评测集
+tangyuan list-tools                              # 查看已装载工具
 ```
 
-可选：把 venv 里的可执行文件链到 PATH，任意目录直接敲 `tangyuan` / `ty`。
+交互中可用斜杠命令：`/skills` `/skill <id>` `/memory` `/tokens` `/team` `/inbox` `/clear`。
 
 ## 配置
 
-见 [`.env.example`](.env.example)。密钥只放 `.env` 或 `~/.tangyuan/.env`，**不要提交到 Git**。
+密钥只放本地 `.env` 或 `~/.tangyuan/.env`（已 gitignore，**绝不入库**）。
 
 ```bash
-# 最小示例
 TANGYUAN_API_KEY=sk-xxx
 TANGYUAN_BASE_URL=https://api.deepseek.com
 TANGYUAN_MODEL=deepseek-chat
 ```
 
-MCP 可选依赖：
+可选能力：`pip install -e '.[mcp]'`（MCP 生态）。完整变量见 [`.env.example`](.env.example)。
+
+## 技术栈
+
+`Python 3.10+` · `OpenAI SDK`（兼容各家接口） · `Typer` CLI · `Rich` 终端 UI · `Pydantic` / `pydantic-settings` 配置与 schema · `httpx` · `ddgs` 网页搜索 · `python-pptx` · 可选 `mcp` / `gradio`。
+
+## 质量保障
+
+- **CI**：GitHub Actions 每次 push / PR 运行安装、导入冒烟与单元测试
+- **测试**：`pytest` 覆盖工具注册表、只读/演示白名单、任务计划校验、记忆路径等**无需 API Key 的纯逻辑**
+- **Lint**：`ruff` 统一风格
+- **类型**：全量 `from __future__ import annotations`，函数注解覆盖率高
 
 ```bash
-pip install -e '.[mcp]'
+pip install -e '.[dev]'
+pytest -q
+ruff check .
 ```
-
-## 举例
-
-```text
-帮我搜一下 LangGraph 官方文档，并打开链接
-根据 README 做个 3 页 PPT，保存到 output/intro.pptx
-@README.md 用中文总结这个项目
-```
-
-```bash
-tangyuan plan "先摸清这个仓库结构再给改动建议" -w .
-tangyuan run "总结当前仓库" -w .
-```
-
-## 工程分层
-
-```text
-tangyuan/
-  agent/       # 工具循环 · 任务计划 · 子代理
-  hooks/       # before/after tool · Stop Gate
-  mcp/         # stdio MCP Client
-  memory/      # MEMORY / 日记 / history / tokens
-  skills/      # 发现与渐进披露
-  tools/       # fs · shell · web · git · search · …
-  prompts/     # SOUL / system / compact / distill
-  ui/          # Rich 终端主题
-  cli.py
-```
-
-## 安全
-
-- API Key 仅本机 `.env`（已 gitignore）
-- 交互模式默认对 shell、写文件二次确认（`-y` 可关）
-- 危险 shell（如 `rm -rf /`、`curl|sh`）即使 `-y` 也会拒绝
-- 写文件默认限制在 workspace 内
-
-## 和 Claude Code 的定位差
-
-| | Claude Code | 汤圆 |
-|--|-------------|------|
-| 定位 | 深度 IDE / 生态 | 轻量自研终端 Agent |
-| MCP | 成熟市场 | 已接 Client，生态仍在长 |
-| 交互 | IDE + diff UX | 终端文本为主 |
-| 安全 | 成熟沙箱 | 确认 + 路径约束 |
 
 ## 路线图
 
-- [x] Skills 渐进披露 · 分层记忆 · `apply_patch`
-- [x] 任务计划 · 子代理 · Agent Team · MCP · Hooks
-- [ ] 评测集与成功率统计
-- [ ] 更强沙箱与权限模型
-- [ ] 在线 Demo / 云端托管（以后再说）
+- [x] 自研工具循环 · 流式输出 · 会话压缩 / 项目蒸馏
+- [x] 结构化任务计划（Stop Gate）· 子代理 · Agent Team · MCP · Hooks
+- [x] 分层记忆 · Skills 渐进披露 · `apply_patch` 精准编辑
+- [x] 端到端评测集 · CI · 单元测试
+- [ ] 更强权限模型与沙箱
+- [ ] 评测成功率看板
+- [ ] 在线 Demo / 云端托管
 
 ## License
 
-[MIT](LICENSE) © li_chenyu
-
-安全说明见 [SECURITY.md](SECURITY.md)。欢迎提 Issue / PR。
+[MIT](LICENSE) © li_chenyu ·  作者主页 [lichenyu.fun](https://lichenyu.fun) · 参与开发见 [CONTRIBUTING](CONTRIBUTING.md) · 安全策略见 [SECURITY](SECURITY.md)

@@ -5,7 +5,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 SHELL_BLOCK_PATTERNS = [
     (re.compile(r"rm\s+(-[a-zA-Z]*\s+)*/\s*$"), "禁止删除根目录"),
@@ -19,7 +18,7 @@ SHELL_BLOCK_PATTERNS = [
 ]
 
 
-def shell_blocked_reason(command: str) -> Optional[str]:
+def shell_blocked_reason(command: str) -> str | None:
     cmd = command.strip()
     if not cmd:
         return "空命令"

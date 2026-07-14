@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from tangyuan.memory import build_memory_prompt_section
 from tangyuan.prompts.system import build_base_system_prompt
@@ -17,8 +17,8 @@ if TYPE_CHECKING:
 def assemble_system_prompt(
     workspace: Path,
     *,
-    forced_skill_id: Optional[str] = None,
-    plan: Optional["TaskPlan"] = None,
+    forced_skill_id: str | None = None,
+    plan: TaskPlan | None = None,
 ) -> str:
     """
     全量系统提示拼装入口（Agent 只应调用这里）。

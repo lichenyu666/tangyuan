@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from tangyuan.hooks.base import Hook, HookDecision
 
@@ -17,7 +17,7 @@ class OutputTruncateHook(Hook):
     def __init__(self, max_chars: int = 12000):
         self.max_chars = max_chars
 
-    def after_tool_call(self, ctx: Dict[str, Any]) -> Any:
+    def after_tool_call(self, ctx: dict[str, Any]) -> Any:
         output = ctx.get("output")
         if isinstance(output, str) and len(output) > self.max_chars:
             ctx["output"] = (
@@ -32,10 +32,10 @@ class ToolAuditHook(Hook):
     name = "tool_audit"
     matcher = "write_file|apply_patch|run_shell|move_to_trash"
 
-    def __init__(self, path: Optional[Path] = None):
+    def __init__(self, path: Path | None = None):
         self.path = path
 
-    def after_tool_call(self, ctx: Dict[str, Any]) -> Any:
+    def after_tool_call(self, ctx: dict[str, Any]) -> Any:
         if self.path is None:
             return None
         try:
@@ -59,7 +59,7 @@ class PlanStopGateHook(Hook):
 
     name = "plan_stop_gate"
 
-    def on_stop(self, ctx: Dict[str, Any]) -> Any:
+    def on_stop(self, ctx: dict[str, Any]) -> Any:
         plan = ctx.get("plan")
         if plan is None:
             return None

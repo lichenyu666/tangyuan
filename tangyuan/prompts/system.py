@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 _PROMPTS_DIR = Path(__file__).resolve().parent
 
@@ -39,9 +38,9 @@ def load_distill_prompt() -> str:
 
 
 def build_base_system_prompt(
-    soul: Optional[str] = None,
-    ops: Optional[str] = None,
-    workspace: Optional[str] = None,
+    soul: str | None = None,
+    ops: str | None = None,
+    workspace: str | None = None,
 ) -> str:
     """组装基础系统提示 = Soul + 操作规范 + 工作区（不含动态 memory/skills）。"""
     parts = [

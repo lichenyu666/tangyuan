@@ -8,7 +8,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 MCP_AVAILABLE = True
 try:
@@ -27,7 +27,7 @@ def _mcp_tool_name(server_name: str, mcp_name: str) -> str:
 
 
 def _result_to_text(result: Any) -> str:
-    parts: List[str] = []
+    parts: list[str] = []
     content = getattr(result, "content", None) or []
     for block in content:
         text = getattr(block, "text", None)
@@ -44,7 +44,7 @@ class MCPClient:
     def __init__(self, name: str, params: Any):
         self.name = name
         self.params = params
-        self._tools: Optional[list] = None
+        self._tools: list | None = None
 
     async def _alist_tools(self) -> list:
         async with stdio_client(self.params) as (read, write):
@@ -53,7 +53,7 @@ class MCPClient:
                 result = await session.list_tools()
                 return list(result.tools)
 
-    async def _acall_tool(self, name: str, arguments: Optional[Dict[str, Any]]) -> str:
+    async def _acall_tool(self, name: str, arguments: dict[str, Any] | None) -> str:
         async with stdio_client(self.params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
@@ -65,7 +65,7 @@ class MCPClient:
             self._tools = asyncio.run(self._alist_tools())
         return list(self._tools)
 
-    def call_tool(self, name: str, arguments: Optional[Dict[str, Any]] = None) -> str:
+    def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> str:
         return asyncio.run(self._acall_tool(name, arguments))
 
 
@@ -137,8 +137,8 @@ def resolve_mcp_config(workspace: Path) -> Path:
     return candidates[0]
 
 
-def _default_servers() -> Dict[str, Any]:
-    servers: Dict[str, Any] = {
+def _default_servers() -> dict[str, Any]:
+    servers: dict[str, Any] = {
         "time": {
             "enabled": True,
             "command": sys.executable,
@@ -197,9 +197,9 @@ def ensure_default_mcp_config(workspace: Path) -> Path:
 
 def load_mcp_tool_map(
     workspace: Path,
-) -> Tuple[Dict[str, Tuple[MCPClient, Any]], Dict[str, MCPClient], List[str]]:
+) -> tuple[dict[str, tuple[MCPClient, Any]], dict[str, MCPClient], list[str]]:
     """返回 (tool_map, clients, warnings)。"""
-    warnings: List[str] = []
+    warnings: list[str] = []
     if not MCP_AVAILABLE:
         return {}, {}, ["未安装 mcp SDK"]
     path = ensure_default_mcp_config(workspace)
@@ -208,8 +208,8 @@ def load_mcp_tool_map(
     except Exception as e:  # noqa: BLE001
         return {}, {}, [f"读取 MCP 配置失败: {e}"]
     servers = data.get("servers") or {}
-    tool_map: Dict[str, Tuple[MCPClient, Any]] = {}
-    clients: Dict[str, MCPClient] = {}
+    tool_map: dict[str, tuple[MCPClient, Any]] = {}
+    clients: dict[str, MCPClient] = {}
     token = resolve_github_token()
     for name, cfg in servers.items():
         if not cfg.get("enabled", True):

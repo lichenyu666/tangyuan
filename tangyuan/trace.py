@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
 class TraceLogger:
@@ -14,7 +14,7 @@ class TraceLogger:
         self.dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         self.path = self.dir / f"run-{ts}.jsonl"
-        self.events: List[Dict[str, Any]] = []
+        self.events: list[dict[str, Any]] = []
 
     def log(self, kind: str, **payload: Any) -> None:
         event = {
@@ -26,7 +26,7 @@ class TraceLogger:
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "path": str(self.path),
             "steps": len([e for e in self.events if e["kind"] == "step"]),

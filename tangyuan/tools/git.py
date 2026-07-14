@@ -12,10 +12,10 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
-def _git_dir(workspace: Path) -> Optional[Path]:
+def _git_dir(workspace: Path) -> Path | None:
     """返回 .git 路径；不是仓库返回 None。"""
     try:
         proc = subprocess.run(
@@ -37,7 +37,7 @@ def is_git_repo(workspace: Path) -> bool:
     return _git_dir(workspace) is not None
 
 
-def _run(workspace: Path, args: List[str], timeout: int = 15) -> Dict[str, Any]:
+def _run(workspace: Path, args: list[str], timeout: int = 15) -> dict[str, Any]:
     try:
         proc = subprocess.run(
             ["git", *args],
@@ -69,7 +69,7 @@ def git_status(workspace: Path, *, porcelain: bool = True) -> str:
     return json.dumps(res, ensure_ascii=False)
 
 
-def git_diff(workspace: Path, *, staged: bool = False, path: Optional[str] = None, max_lines: int = 200) -> str:
+def git_diff(workspace: Path, *, staged: bool = False, path: str | None = None, max_lines: int = 200) -> str:
     if not is_git_repo(workspace):
         return json.dumps({"ok": False, "error": "当前 workspace 不是 git 仓库"}, ensure_ascii=False)
     args = ["diff"]
@@ -97,13 +97,13 @@ def git_log(workspace: Path, *, limit: int = 10, oneline: bool = True) -> str:
     return json.dumps(res, ensure_ascii=False)
 
 
-def git_add(workspace: Path, paths: List[str]) -> str:
+def git_add(workspace: Path, paths: list[str]) -> str:
     if not is_git_repo(workspace):
         return json.dumps({"ok": False, "error": "当前 workspace 不是 git 仓库"}, ensure_ascii=False)
     if not paths:
         return json.dumps({"ok": False, "error": "paths 为空"}, ensure_ascii=False)
     # 限定为 workspace 内的路径，防止绝对路径越界
-    safe: List[str] = []
+    safe: list[str] = []
     for p in paths:
         if p in {".", "-A", "--all"}:
             safe.append("-A")
@@ -124,7 +124,7 @@ def git_commit(workspace: Path, message: str, *, add_all: bool = False) -> str:
         return json.dumps({"ok": False, "error": "当前 workspace 不是 git 仓库"}, ensure_ascii=False)
     if not message or not message.strip():
         return json.dumps({"ok": False, "error": "commit message 不能为空"}, ensure_ascii=False)
-    args: List[str] = []
+    args: list[str] = []
     if add_all:
         args = ["add", "-A"]
         _run(workspace, args)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class HookDecision:
@@ -12,7 +12,7 @@ class HookDecision:
         self,
         action: str,
         reason: str = "",
-        updated_input: Optional[Dict[str, Any]] = None,
+        updated_input: dict[str, Any] | None = None,
     ):
         self.action = action
         self.reason = reason
@@ -39,25 +39,25 @@ class Hook:
     name: str = ""
     matcher: str = "*"
 
-    def matches(self, tool_name: Optional[str]) -> bool:
+    def matches(self, tool_name: str | None) -> bool:
         if not tool_name or self.matcher in ("*", ""):
             return True
         patterns = [p.strip() for p in self.matcher.replace(",", "|").split("|")]
         return tool_name in patterns
 
-    def before_tool_call(self, ctx: Dict[str, Any]) -> Any:
+    def before_tool_call(self, ctx: dict[str, Any]) -> Any:
         return None
 
-    def after_tool_call(self, ctx: Dict[str, Any]) -> Any:
+    def after_tool_call(self, ctx: dict[str, Any]) -> Any:
         return None
 
-    def on_stop(self, ctx: Dict[str, Any]) -> Any:
+    def on_stop(self, ctx: dict[str, Any]) -> Any:
         return None
 
 
 class HookRegistry:
     def __init__(self) -> None:
-        self._hooks: List[Hook] = []
+        self._hooks: list[Hook] = []
 
     def register(self, hook: Hook) -> None:
         self._hooks.append(hook)
@@ -65,9 +65,9 @@ class HookRegistry:
     def emit(
         self,
         event: str,
-        ctx: Dict[str, Any],
+        ctx: dict[str, Any],
         *,
-        tool_matcher: Optional[str] = None,
+        tool_matcher: str | None = None,
     ) -> Any:
         for hook in self._hooks:
             if event in ("before_tool_call", "after_tool_call"):
@@ -91,7 +91,7 @@ class HookRegistry:
         return None
 
 
-def build_default_hooks(*, audit_path: Optional[Any] = None) -> HookRegistry:
+def build_default_hooks(*, audit_path: Any | None = None) -> HookRegistry:
     from tangyuan.hooks.builtin import (
         OutputTruncateHook,
         PlanStopGateHook,

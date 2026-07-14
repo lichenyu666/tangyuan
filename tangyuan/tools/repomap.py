@@ -12,7 +12,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 # 跳过的目录
 _SKIP_DIRS = {
@@ -22,7 +21,7 @@ _SKIP_DIRS = {
 }
 
 # 支持的后缀 → 语言
-_LANG_BY_EXT: Dict[str, str] = {
+_LANG_BY_EXT: dict[str, str] = {
     ".py": "python",
     ".js": "javascript", ".jsx": "javascript",
     ".ts": "typescript", ".tsx": "typescript",
@@ -44,7 +43,7 @@ _LANG_BY_EXT: Dict[str, str] = {
 }
 
 # 每种语言的符号正则：匹配 (name, kind)
-_SYMBOL_PATTERNS: Dict[str, List[Tuple[str, str]]] = {
+_SYMBOL_PATTERNS: dict[str, list[tuple[str, str]]] = {
     "python": [
         (r"^\s*class\s+(\w+)\s*[:\(]", "class"),
         (r"^\s*def\s+(\w+)\s*\(", "def"),
@@ -147,8 +146,8 @@ class Symbol:
     line: int
 
 
-def _iter_code_files(root: Path, *, max_files: int = 500) -> List[Path]:
-    out: List[Path] = []
+def _iter_code_files(root: Path, *, max_files: int = 500) -> list[Path]:
+    out: list[Path] = []
     try:
         for p in root.rglob("*"):
             if len(out) >= max_files:
@@ -171,7 +170,7 @@ def _iter_code_files(root: Path, *, max_files: int = 500) -> List[Path]:
     return out
 
 
-def extract_symbols(path: Path, *, max_per_file: int = 50) -> List[Symbol]:
+def extract_symbols(path: Path, *, max_per_file: int = 50) -> list[Symbol]:
     """提取单个文件的符号。"""
     ext = path.suffix.lower()
     lang = _LANG_BY_EXT.get(ext)
@@ -184,7 +183,7 @@ def extract_symbols(path: Path, *, max_per_file: int = 50) -> List[Symbol]:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
-    out: List[Symbol] = []
+    out: list[Symbol] = []
     for i, line in enumerate(text.splitlines(), 1):
         if len(out) >= max_per_file:
             break
@@ -217,7 +216,7 @@ def build_repo_map(
         ws_resolved = workspace.resolve()
     except Exception:  # noqa: BLE001
         ws_resolved = workspace
-    lines: List[str] = ["## Repo Map（符号级摘要）", ""]
+    lines: list[str] = ["## Repo Map（符号级摘要）", ""]
     total = 0
     total_chars = len("\n".join(lines))
     for f in files:

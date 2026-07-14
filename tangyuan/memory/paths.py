@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 
 def global_memory_dir() -> Path:
@@ -37,7 +36,7 @@ def tokens_path() -> Path:
     return global_memory_dir() / "tokens.jsonl"
 
 
-def daily_log_path(day: Optional[str] = None) -> Path:
+def daily_log_path(day: str | None = None) -> Path:
     """按日日记：YYYY-MM-DD.md（本地日期）。"""
     if not day:
         day = datetime.now().strftime("%Y-%m-%d")

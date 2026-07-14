@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from tangyuan.mcp import (
     MCP_AVAILABLE,
@@ -15,9 +15,9 @@ from tangyuan.mcp import (
 from tangyuan.tools.registry import ToolRegistry, ToolSpec
 
 
-def register_mcp_tools(reg: ToolRegistry, workspace: Path) -> Dict[str, Any]:
+def register_mcp_tools(reg: ToolRegistry, workspace: Path) -> dict[str, Any]:
     """挂载 MCP 工具。无配置时自动写入 time；有二进制则挂 github。"""
-    info: Dict[str, Any] = {
+    info: dict[str, Any] = {
         "available": MCP_AVAILABLE,
         "config": str(resolve_mcp_config(workspace)),
         "servers": [],
@@ -25,8 +25,8 @@ def register_mcp_tools(reg: ToolRegistry, workspace: Path) -> Dict[str, Any]:
         "warnings": [],
     }
 
-    clients: Dict[str, Any] = {}
-    warnings: List[str] = []
+    clients: dict[str, Any] = {}
+    warnings: list[str] = []
     if MCP_AVAILABLE:
         cfg_path = ensure_default_mcp_config(workspace)
         info["config"] = str(cfg_path)
@@ -42,7 +42,7 @@ def register_mcp_tools(reg: ToolRegistry, workspace: Path) -> Dict[str, Any]:
             }
 
             def _make_handler(c=client, t=tool):
-                def _handler(args: Dict[str, Any]) -> str:
+                def _handler(args: dict[str, Any]) -> str:
                     try:
                         text = c.call_tool(t.name, args)
                         return json.dumps(
@@ -77,7 +77,7 @@ def register_mcp_tools(reg: ToolRegistry, workspace: Path) -> Dict[str, Any]:
             )
             info["tools"].append(tool_name)
 
-    def _list_mcp(args: Dict[str, Any]) -> str:
+    def _list_mcp(args: dict[str, Any]) -> str:
         if not MCP_AVAILABLE:
             return json.dumps(
                 {
@@ -90,7 +90,7 @@ def register_mcp_tools(reg: ToolRegistry, workspace: Path) -> Dict[str, Any]:
                 },
                 ensure_ascii=False,
             )
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "ok": True,
             "servers": list(clients.keys()),
             "tools": info.get("tools") or [],

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from tangyuan.config import Settings
 from tangyuan.tools.default import build_default_tools
@@ -31,7 +30,7 @@ _DEMO_BLOCKLIST = (
 
 def build_demo_tools(
     workspace: Path,
-    settings: Optional[Settings] = None,
+    settings: Settings | None = None,
 ) -> ToolRegistry:
     """构建简历 Demo 用的白名单工具。"""
     reg = build_default_tools(

@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from tangyuan.memory.paths import history_path
 
 
-def append_history(event: Dict[str, Any]) -> Path:
+def append_history(event: dict[str, Any]) -> Path:
     """追加一条会话历史到 history.jsonl。"""
     path = history_path()
     row = {

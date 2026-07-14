@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tangyuan.memory import recall_memory, write_memory
 from tangyuan.skills import list_skills, load_skill_body
@@ -91,7 +91,7 @@ def register_memory_tools(reg, ctx: ToolContext) -> None:
 def register_skill_tools(reg, ctx: ToolContext) -> None:
     workspace = ctx.workspace
 
-    def _load_skill(args: Dict[str, Any]) -> str:
+    def _load_skill(args: dict[str, Any]) -> str:
         skill_id = (args.get("skill_id") or "").strip()
         if not skill_id:
             return json.dumps({"ok": False, "error": "缺少 skill_id"}, ensure_ascii=False)

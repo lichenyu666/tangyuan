@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from openai import OpenAI
 
@@ -37,8 +37,8 @@ class TangyuanAgent:
         settings: Settings,
         tools: ToolRegistry,
         trace: TraceLogger,
-        on_event: Optional[Any] = None,
-        forced_skill_id: Optional[str] = None,
+        on_event: Any | None = None,
+        forced_skill_id: str | None = None,
     ):
         if not settings.api_key:
             raise ValueError(
@@ -57,7 +57,7 @@ class TangyuanAgent:
         self.hooks = build_default_hooks(
             audit_path=ws / ".tangyuan" / "hooks_audit.jsonl"
         )
-        self.messages: List[Dict[str, Any]] = [
+        self.messages: list[dict[str, Any]] = [
             {"role": "system", "content": self._system_prompt()},
         ]
 
@@ -77,7 +77,7 @@ class TangyuanAgent:
         else:
             self.messages.insert(0, {"role": "system", "content": content})
 
-    def set_forced_skill(self, skill_id: Optional[str]) -> None:
+    def set_forced_skill(self, skill_id: str | None) -> None:
         """手动指定/取消 Skill，并刷新系统提示。"""
         self.forced_skill_id = skill_id
         self.refresh_system_prompt()
@@ -174,7 +174,7 @@ class TangyuanAgent:
             self.trace.log("compact_error", error=str(e))
             return digest[:800] + "\n…(摘要失败，保留摘录前部)"
 
-    def distill_project_memory(self, source_digest: Optional[str] = None) -> List[str]:
+    def distill_project_memory(self, source_digest: str | None = None) -> list[str]:
         """
         从当前会话（或给定摘要）提炼 0～3 条项目级事实写入 project.md。
         只写 bucket=project，不自动写用户画像。
@@ -213,7 +213,7 @@ class TangyuanAgent:
             self.trace.log("distill_error", error=str(e))
             return []
 
-        written: List[str] = []
+        written: list[str] = []
         for item in facts[:3]:
             topic = (item.get("topic") or "").strip() or None
             fact = (item.get("fact") or "").strip()
@@ -254,7 +254,7 @@ class TangyuanAgent:
                     workspace=str(self.settings.resolve_workspace()),
                 )
 
-            assistant_msg: Dict[str, Any] = {
+            assistant_msg: dict[str, Any] = {
                 "role": "assistant",
                 "content": content_buf or "",
             }
@@ -275,7 +275,7 @@ class TangyuanAgent:
             if not raw_tool_calls:
                 final_text = (content_buf or "").strip()
                 self.on_event("stream_end")
-                stop_ctx: Dict[str, Any] = {
+                stop_ctx: dict[str, Any] = {
                     "reply": final_text,
                     "plan": self.plan,
                     "retry": plan_stop_pushes,
@@ -325,7 +325,7 @@ class TangyuanAgent:
 
             for tc in raw_tool_calls:
                 name = tc["function"]["name"]
-                args: Dict[str, Any] = {}
+                args: dict[str, Any] = {}
                 try:
                     args = json.loads(tc["function"]["arguments"] or "{}")
                 except json.JSONDecodeError:
@@ -386,7 +386,7 @@ class TangyuanAgent:
         )
 
         content_buf = ""
-        tool_calls_buf: Dict[int, Dict[str, Any]] = {}
+        tool_calls_buf: dict[int, dict[str, Any]] = {}
         usage_obj: Any = None
         started = False
 
@@ -425,9 +425,9 @@ class TangyuanAgent:
         raw_tool_calls = [tool_calls_buf[k] for k in sorted(tool_calls_buf)]
         return content_buf, raw_tool_calls, usage_obj
 
-    def _invoke_tool(self, name: str, args: Dict[str, Any]) -> str:
+    def _invoke_tool(self, name: str, args: dict[str, Any]) -> str:
         """工具调用走 Hook：before → call → after。"""
-        ctx: Dict[str, Any] = {"name": name, "input": dict(args), "plan": self.plan}
+        ctx: dict[str, Any] = {"name": name, "input": dict(args), "plan": self.plan}
         decision = self.hooks.emit(
             "before_tool_call", ctx, tool_matcher=name
         )
@@ -525,7 +525,7 @@ def _plan_advanced(before: tuple, after: tuple) -> bool:
     return False
 
 
-def _parse_fact_json(raw: str) -> List[Dict[str, str]]:
+def _parse_fact_json(raw: str) -> list[dict[str, str]]:
     raw = raw.strip()
     if raw.startswith("```"):
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -542,7 +542,7 @@ def _parse_fact_json(raw: str) -> List[Dict[str, str]]:
             return []
     if not isinstance(data, list):
         return []
-    out: List[Dict[str, str]] = []
+    out: list[dict[str, str]] = []
     for item in data:
         if isinstance(item, dict) and item.get("fact"):
             out.append(
@@ -554,8 +554,8 @@ def _parse_fact_json(raw: str) -> List[Dict[str, str]]:
     return out
 
 
-def _render_messages_digest(messages: List[Dict[str, Any]], max_chars: int = 12000) -> str:
-    parts: List[str] = []
+def _render_messages_digest(messages: list[dict[str, Any]], max_chars: int = 12000) -> str:
+    parts: list[str] = []
     for m in messages:
         role = m.get("role", "?")
         content = m.get("content") or ""

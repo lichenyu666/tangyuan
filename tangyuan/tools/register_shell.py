@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tangyuan.tools.context import ToolContext
 from tangyuan.tools.registry import ToolSpec
@@ -11,7 +11,7 @@ from tangyuan.tools.shell import move_to_trash, open_app, open_path, run_shell, 
 def register_shell_tools(reg, ctx: ToolContext, *, read_only: bool = False) -> None:
     workspace = ctx.workspace
 
-    def shell_handler(args: Dict[str, Any]) -> str:
+    def shell_handler(args: dict[str, Any]) -> str:
         cmd = args.get("command") or ""
         blocked = shell_blocked_reason(cmd)
         if blocked:
@@ -82,7 +82,7 @@ def register_shell_tools(reg, ctx: ToolContext, *, read_only: bool = False) -> N
             lambda args: open_app(args["name"]),
         )
 
-        def trash_handler(args: Dict[str, Any]) -> str:
+        def trash_handler(args: dict[str, Any]) -> str:
             path = args.get("path") or ""
             if not ctx.need_confirm("移到废纸篓（可恢复）", path):
                 return json.dumps({"ok": False, "error": "用户取消"}, ensure_ascii=False)

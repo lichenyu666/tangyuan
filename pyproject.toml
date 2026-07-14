@@ -23,6 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 mcp = ["mcp>=1.0.0; python_version>='3.10'"]
 web = ["gradio>=4.44.0"]
+dev = ["pytest>=8.0.0", "ruff>=0.6.0"]
 
 [project.urls]
 Homepage = "https://github.com/lichenyu666/tangyuan"
@@ -38,3 +39,15 @@ include = ["tangyuan*"]
 
 [tool.setuptools.package-data]
 tangyuan = ["prompts/*.md", "skills/catalog/*/SKILL.md", "mcp/servers/*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "B008"]

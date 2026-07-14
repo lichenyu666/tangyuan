@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from tangyuan.memory.paths import (
     daily_log_path,
@@ -11,8 +10,6 @@ from tangyuan.memory.paths import (
     memory_md_path,
     project_memory_dir,
     project_memory_md_path,
-    user_memory_path,
-    project_memory_path,
 )
 
 PROFILE_PROMPT_MAX_CHARS = 1800
@@ -125,14 +122,14 @@ def read_project_notes(workspace: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace").strip()
 
 
-def read_daily_log(day: Optional[str] = None) -> str:
+def read_daily_log(day: str | None = None) -> str:
     path = daily_log_path(day)
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8", errors="replace").strip()
 
 
-def append_daily_log(text: str, *, heading: Optional[str] = None) -> str:
+def append_daily_log(text: str, *, heading: str | None = None) -> str:
     """追加到今日 YYYY-MM-DD.md。"""
     text = text.strip()
     if not text:
@@ -149,7 +146,7 @@ def append_daily_log(text: str, *, heading: Optional[str] = None) -> str:
 
 def read_long_term_memory(workspace: Path) -> str:
     ensure_memory_files(workspace)
-    parts: List[str] = []
+    parts: list[str] = []
     user = read_user_profile()
     if user:
         parts.append(user)
@@ -181,7 +178,7 @@ def write_memory(
     fact: str,
     *,
     bucket: str = "user",
-    topic: Optional[str] = None,
+    topic: str | None = None,
 ) -> str:
     """
     bucket:
@@ -227,14 +224,14 @@ def recall_memory(
     workspace: Path,
     *,
     bucket: str = "all",
-    query: Optional[str] = None,
+    query: str | None = None,
     max_chars: int = 6000,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     ensure_memory_files(workspace)
     bucket = (bucket or "all").strip().lower()
     q = (query or "").strip().lower()
 
-    sections: Dict[str, str] = {}
+    sections: dict[str, str] = {}
     if bucket in {"user", "all", "profile", "memory"}:
         sections["MEMORY.md"] = read_user_profile()
     if bucket in {"project", "all"}:
@@ -243,7 +240,7 @@ def recall_memory(
         sections["daily"] = read_daily_log()
 
     if q:
-        filtered: Dict[str, str] = {}
+        filtered: dict[str, str] = {}
         for name, body in sections.items():
             hit_lines = [ln for ln in body.splitlines() if q in ln.lower()]
             if hit_lines:
@@ -251,7 +248,7 @@ def recall_memory(
                 filtered[name] = "\n".join(headers + [""] + hit_lines)
         sections = filtered
 
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
     remaining = max_chars
     for name, body in sections.items():
         if remaining <= 0:
@@ -299,13 +296,13 @@ def build_memory_prompt_section(workspace: Path) -> str:
             [
                 "",
                 "### 项目 MEMORY",
-                f"存在项目记忆。相关约定请先 `recall_memory(bucket=\"project\")`。",
+                "存在项目记忆。相关约定请先 `recall_memory(bucket=\"project\")`。",
             ]
         )
     return "\n".join(parts) + "\n"
 
 
-def estimate_messages_chars(messages: List[dict]) -> int:
+def estimate_messages_chars(messages: list[dict]) -> int:
     n = 0
     for m in messages:
         c = m.get("content")

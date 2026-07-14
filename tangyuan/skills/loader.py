@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List, Optional
 
 
 def _has_skill_packages(root: Path) -> bool:
@@ -40,7 +39,7 @@ def _when_to_use(body: str) -> str:
     """从 SKILL.md 抽出「何时使用」作为摘要；没有则退回首段非标题文字。"""
     lines = body.splitlines()
     collecting = False
-    chunks: List[str] = []
+    chunks: list[str] = []
     for line in lines:
         stripped = line.strip()
         if stripped.startswith("##"):
@@ -54,7 +53,7 @@ def _when_to_use(body: str) -> str:
     if chunks:
         return " ".join(chunks)
 
-    paras: List[str] = []
+    paras: list[str] = []
     for line in lines:
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
@@ -68,11 +67,11 @@ def _when_to_use(body: str) -> str:
     return text[:160] + ("…" if len(text) > 160 else "") if text else "(无摘要)"
 
 
-def list_skills(workspace: Path) -> List[Dict[str, str]]:
+def list_skills(workspace: Path) -> list[dict[str, str]]:
     root = skills_root(workspace)
     if not root.is_dir():
         return []
-    items: List[Dict[str, str]] = []
+    items: list[dict[str, str]] = []
     for d in sorted(root.iterdir()):
         if not d.is_dir():
             continue
@@ -92,7 +91,7 @@ def list_skills(workspace: Path) -> List[Dict[str, str]]:
     return items
 
 
-def load_skill_body(workspace: Path, skill_id: str) -> Optional[str]:
+def load_skill_body(workspace: Path, skill_id: str) -> str | None:
     for s in list_skills(workspace):
         if s["id"] == skill_id:
             return s["body"]
@@ -101,7 +100,7 @@ def load_skill_body(workspace: Path, skill_id: str) -> Optional[str]:
 
 def build_skills_prompt_section(
     workspace: Path,
-    forced_skill_id: Optional[str] = None,
+    forced_skill_id: str | None = None,
 ) -> str:
     """
     渐进式披露：

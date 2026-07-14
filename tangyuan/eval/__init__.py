@@ -8,8 +8,8 @@
 
 from __future__ import annotations
 
-from .runner import EvalCase, EvalResult, run_eval, run_single
 from .cases import DEFAULT_CASES
+from .runner import EvalCase, EvalResult, run_eval, run_single
 
 __all__ = [
     "DEFAULT_CASES",

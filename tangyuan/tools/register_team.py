@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any
 
 from tangyuan.agent.team import TeammateManager
 from tangyuan.tools.registry import ToolRegistry, ToolSpec
 
 
 def register_team_tools(reg: ToolRegistry, team: TeammateManager) -> None:
-    def _spawn(args: Dict[str, Any]) -> str:
+    def _spawn(args: dict[str, Any]) -> str:
         return json.dumps(
             {
                 "ok": True,
@@ -24,13 +24,13 @@ def register_team_tools(reg: ToolRegistry, team: TeammateManager) -> None:
             ensure_ascii=False,
         )
 
-    def _list(_args: Dict[str, Any]) -> str:
+    def _list(_args: dict[str, Any]) -> str:
         return json.dumps(
             {"ok": True, "team": team.list_all()},
             ensure_ascii=False,
         )
 
-    def _send(args: Dict[str, Any]) -> str:
+    def _send(args: dict[str, Any]) -> str:
         to = (args.get("to") or "").strip()
         content = (args.get("content") or "").strip()
         if not to or not content:
@@ -46,14 +46,14 @@ def register_team_tools(reg: ToolRegistry, team: TeammateManager) -> None:
         )
         return json.dumps({"ok": True, "result": msg}, ensure_ascii=False)
 
-    def _inbox(_args: Dict[str, Any]) -> str:
+    def _inbox(_args: dict[str, Any]) -> str:
         msgs = team.bus.read_inbox("lead")
         return json.dumps(
             {"ok": True, "inbox": msgs, "count": len(msgs)},
             ensure_ascii=False,
         )
 
-    def _broadcast(args: Dict[str, Any]) -> str:
+    def _broadcast(args: dict[str, Any]) -> str:
         content = (args.get("content") or "").strip()
         if not content:
             return json.dumps(
@@ -145,7 +145,7 @@ def register_team_tools(reg: ToolRegistry, team: TeammateManager) -> None:
 def ensure_team(
     settings,
     tools: ToolRegistry,
-    existing: Optional[TeammateManager] = None,
+    existing: TeammateManager | None = None,
 ) -> TeammateManager:
     from tangyuan.agent.team import team_dir_for
 

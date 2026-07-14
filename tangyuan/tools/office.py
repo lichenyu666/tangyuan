@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import List
 
 from tangyuan.tools.paths import workspace_path
 
-def create_pptx(workspace: Path, rel: str, title: str, slides: List[str]) -> str:
+
+def create_pptx(workspace: Path, rel: str, title: str, slides: list[str]) -> str:
     try:
         from pptx import Presentation
         from pptx.util import Pt

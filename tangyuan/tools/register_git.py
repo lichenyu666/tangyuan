@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 from tangyuan.tools.context import ToolContext
 from tangyuan.tools.git import (
@@ -112,7 +112,7 @@ def register_git_tools(reg, ctx: ToolContext, *, read_only: bool = False) -> Non
     )
 
     if not read_only:
-        def add_handler(args: Dict[str, Any]) -> str:
+        def add_handler(args: dict[str, Any]) -> str:
             paths = args.get("paths") or []
             if not isinstance(paths, list):
                 return json.dumps({"ok": False, "error": "paths 必须是数组"}, ensure_ascii=False)
@@ -144,7 +144,7 @@ def register_git_tools(reg, ctx: ToolContext, *, read_only: bool = False) -> Non
             add_handler,
         )
 
-        def commit_handler(args: Dict[str, Any]) -> str:
+        def commit_handler(args: dict[str, Any]) -> str:
             message = (args.get("message") or "").strip()
             if not message:
                 return json.dumps({"ok": False, "error": "message 不能为空"}, ensure_ascii=False)

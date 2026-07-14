@@ -6,7 +6,7 @@ import json
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from openai import OpenAI
 
@@ -53,11 +53,11 @@ class MessageBus:
         to: str,
         content: str,
         msg_type: str = "message",
-        extra: Optional[Dict[str, Any]] = None,
+        extra: dict[str, Any] | None = None,
     ) -> str:
         if msg_type not in VALID_MSG_TYPES:
             return f"Error: invalid msg_type '{msg_type}'，允许: {sorted(VALID_MSG_TYPES)}"
-        msg: Dict[str, Any] = {
+        msg: dict[str, Any] = {
             "type": msg_type,
             "from": sender,
             "content": content,
@@ -71,11 +71,11 @@ class MessageBus:
             f.write(json.dumps(msg, ensure_ascii=False) + "\n")
         return f"已送达 {to} 的 inbox：{msg_type}"
 
-    def read_inbox(self, name: str) -> List[Dict[str, Any]]:
+    def read_inbox(self, name: str) -> list[dict[str, Any]]:
         path = self.dir / f"{name}.jsonl"
         if not path.exists():
             return []
-        messages: List[Dict[str, Any]] = []
+        messages: list[dict[str, Any]] = []
         for line in path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
@@ -93,7 +93,7 @@ class MessageBus:
         path.write_text("", encoding="utf-8")
         return messages
 
-    def broadcast(self, sender: str, content: str, teammates: List[str]) -> str:
+    def broadcast(self, sender: str, content: str, teammates: list[str]) -> str:
         count = 0
         for name in teammates:
             if name == sender:
@@ -121,11 +121,11 @@ class TeammateManager:
         self.settings = settings
         self.tools = tools
         self.config = self._load_config()
-        self.threads: Dict[str, threading.Thread] = {}
+        self.threads: dict[str, threading.Thread] = {}
         self.lock = threading.Lock()
         self._mark_stale_offline()
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         if self.config_path.exists():
             try:
                 return json.loads(self.config_path.read_text(encoding="utf-8"))
@@ -148,7 +148,7 @@ class TeammateManager:
         if changed:
             self._save_config()
 
-    def _find(self, name: str) -> Optional[Dict[str, Any]]:
+    def _find(self, name: str) -> dict[str, Any] | None:
         for m in self.config.get("members", []):
             if m.get("name") == name:
                 return m
@@ -161,7 +161,7 @@ class TeammateManager:
                 m["status"] = status
                 self._save_config()
 
-    def member_names(self) -> List[str]:
+    def member_names(self) -> list[str]:
         with self.lock:
             return [m["name"] for m in self.config.get("members", [])]
 
@@ -261,7 +261,7 @@ class TeammateManager:
                 },
             },
         ]
-        messages: List[Dict[str, Any]] = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ]
@@ -319,7 +319,7 @@ class TeammateManager:
 
                 msg = resp.choices[0].message
                 tool_calls = msg.tool_calls or []
-                assistant: Dict[str, Any] = {
+                assistant: dict[str, Any] = {
                     "role": "assistant",
                     "content": msg.content or "",
                 }
@@ -376,8 +376,8 @@ class TeammateManager:
         self,
         sender: str,
         tool_name: str,
-        args: Dict[str, Any],
-        allowed: List[str],
+        args: dict[str, Any],
+        allowed: list[str],
     ) -> str:
         if tool_name == "send_message":
             return self.bus.send(

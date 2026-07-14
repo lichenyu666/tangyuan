@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import typer
-from rich.align import Align
 from rich.box import ROUNDED, SIMPLE
 from rich.markdown import Markdown
 from rich.panel import Panel
@@ -15,8 +14,14 @@ from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
 
-from tangyuan import __version__
-from tangyuan.ui.theme import APRICOT, GOLD, GOLD_DIM, INK_SOFT, JADE, MARK, MIST, RICE, STEEL, console
+from tangyuan.ui.theme import (
+    APRICOT,
+    GOLD_DIM,
+    INK_SOFT,
+    MARK,
+    STEEL,
+    console,
+)
 
 _SHOW_DETAILS = False
 
@@ -137,7 +142,7 @@ def reset_stream_flag() -> None:
 
 # ── 工具调用卡片 ────────────────────────────────────────────────────
 
-def tool_summary(name: str, args: Dict[str, Any]) -> str:
+def tool_summary(name: str, args: dict[str, Any]) -> str:
     if name == "read_file":
         return str(args.get("path") or args.get("file") or "")
     if name in {"write_file", "apply_patch"}:
@@ -208,7 +213,7 @@ def _tool_icon(name: str) -> str:
     return "┊"
 
 
-def print_tool_call(name: str, args: Dict[str, Any]) -> None:
+def print_tool_call(name: str, args: dict[str, Any]) -> None:
     summary = tool_summary(name, args)
     icon = _tool_icon(name)
     row = Text()
@@ -243,7 +248,7 @@ def print_tool_result(result: str) -> None:
         console.print(Text(f"  ✓ {preview}", style="ty.muted"))
 
 
-def print_plan(items: List[Dict[str, Any]]) -> None:
+def print_plan(items: list[dict[str, Any]]) -> None:
     if not items:
         return
     done = sum(1 for i in items if i.get("status") == "completed")
@@ -335,7 +340,7 @@ def confirm_ui(title: str, detail: str) -> bool:
     return typer.confirm("确认执行？", default=False)
 
 
-def skills_table(rows: List[Dict[str, str]]) -> None:
+def skills_table(rows: list[dict[str, str]]) -> None:
     table = Table(
         box=SIMPLE,
         show_header=True,
@@ -351,7 +356,7 @@ def skills_table(rows: List[Dict[str, str]]) -> None:
     console.print(table)
 
 
-def tools_table(rows: List[tuple]) -> None:
+def tools_table(rows: list[tuple]) -> None:
     table = Table(
         box=SIMPLE,
         show_header=True,

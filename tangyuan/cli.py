@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -121,7 +120,7 @@ def _on_event(kind: str, **payload) -> None:
 def _make_agent(
     settings,
     yes: bool,
-    forced_skill_id: Optional[str] = None,
+    forced_skill_id: str | None = None,
     on_event=None,
     read_only: bool = False,
 ) -> TangyuanAgent:
@@ -165,8 +164,8 @@ def _maybe_distill(agent: TangyuanAgent, label: str) -> None:
 
 
 def interactive(
-    workspace: Optional[str] = None,
-    model: Optional[str] = None,
+    workspace: str | None = None,
+    model: str | None = None,
     yes: bool = False,
 ) -> None:
     settings = load_settings(workspace=workspace, model=model)
@@ -321,8 +320,8 @@ def interactive(
 @app.callback()
 def main(
     ctx: typer.Context,
-    workspace: Optional[str] = typer.Option(None, "--workspace", "-w"),
-    model: Optional[str] = typer.Option(None, "--model", "-m"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+    model: str | None = typer.Option(None, "--model", "-m"),
     yes: bool = typer.Option(False, "--yes", "-y", help="危险操作不再确认"),
 ) -> None:
     if ctx.invoked_subcommand is None:
@@ -337,9 +336,9 @@ def version() -> None:
 @app.command()
 def run(
     task: str = typer.Argument(..., help="一次性任务"),
-    workspace: Optional[str] = typer.Option(None, "--workspace", "-w"),
-    model: Optional[str] = typer.Option(None, "--model", "-m"),
-    max_steps: Optional[int] = typer.Option(None, "--max-steps"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+    model: str | None = typer.Option(None, "--model", "-m"),
+    max_steps: int | None = typer.Option(None, "--max-steps"),
     yes: bool = typer.Option(False, "--yes", "-y"),
     details: bool = typer.Option(False, "--details"),
 ) -> None:
@@ -369,8 +368,8 @@ def run(
 
 @app.command("chat")
 def chat_cmd(
-    workspace: Optional[str] = typer.Option(None, "--workspace", "-w"),
-    model: Optional[str] = typer.Option(None, "--model", "-m"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+    model: str | None = typer.Option(None, "--model", "-m"),
     yes: bool = typer.Option(False, "--yes", "-y"),
 ) -> None:
     interactive(workspace=workspace, model=model, yes=yes)
@@ -379,13 +378,15 @@ def chat_cmd(
 @app.command("plan")
 def plan_cmd(
     task: str = typer.Argument(..., help="要规划的任务"),
-    workspace: Optional[str] = typer.Option(None, "--workspace", "-w"),
-    model: Optional[str] = typer.Option(None, "--model", "-m"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+    model: str | None = typer.Option(None, "--model", "-m"),
     yes: bool = typer.Option(False, "--yes", "-y"),
-    out: Optional[str] = typer.Option(None, "--out", "-o", help="计划文件路径，默认 <workspace>/.tangyuan/plan.md"),
+    out: str | None = typer.Option(None, "--out", "-o", help="计划文件路径，默认 <workspace>/.tangyuan/plan.md"),
 ) -> None:
     """Plan Mode：只用只读工具探索，产出 plan.md 供用户确认后再执行。"""
+    from rich.box import ROUNDED
     from rich.panel import Panel
+
     from tangyuan.ui.theme import GOLD
 
     settings = load_settings(workspace=workspace, model=model)
@@ -465,6 +466,7 @@ def list_tools() -> None:
 @app.command("show-trace")
 def show_trace(path: str = typer.Argument(...)) -> None:
     from rich.panel import Panel
+
     from tangyuan.ui.theme import GOLD
 
     text = open(path, encoding="utf-8").read()
@@ -474,14 +476,13 @@ def show_trace(path: str = typer.Argument(...)) -> None:
 @app.command("eval")
 def eval_cmd(
     skip_network: bool = typer.Option(False, "--skip-network", help="跳过依赖外网的用例"),
-    only: Optional[str] = typer.Option(None, "--only", help="只跑指定 id（逗号分隔）"),
+    only: str | None = typer.Option(None, "--only", help="只跑指定 id（逗号分隔）"),
     report: str = typer.Option("eval_report.md", "--report", "-r", help="报告输出路径"),
     stop_on_fail: bool = typer.Option(False, "--stop-on-fail", help="首个失败即停"),
-    model: Optional[str] = typer.Option(None, "--model", "-m"),
+    model: str | None = typer.Option(None, "--model", "-m"),
 ) -> None:
     """跑评测集，输出成功率报告。"""
     from tangyuan.eval import DEFAULT_CASES, run_eval, save_report
-    from tangyuan.ui.theme import GOLD, JADE, ROSE
 
     only_ids = None
     if only:

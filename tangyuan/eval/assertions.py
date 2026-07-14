@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, List
 
 
 @dataclass
@@ -70,23 +70,23 @@ def shell_output_contains(ws: Path, cmd: str, text: str, timeout: int = 15) -> A
         return AssertResult(False, f"超时：{cmd}")
     out = (proc.stdout or "") + "\n" + (proc.stderr or "")
     if text in out:
-        return AssertResult(True, f"输出含目标文本")
+        return AssertResult(True, "输出含目标文本")
     return AssertResult(False, f"输出不含 {text!r}；前 200 字：{out[:200]}")
 
 
 def reply_contains(reply: str, text: str) -> AssertResult:
     if text in reply:
-        return AssertResult(True, f"回复含目标文本")
+        return AssertResult(True, "回复含目标文本")
     return AssertResult(False, f"回复不含 {text!r}；前 200 字：{reply[:200]}")
 
 
 def reply_not_contains(reply: str, text: str) -> AssertResult:
     if text not in reply:
-        return AssertResult(True, f"回复不含禁词")
+        return AssertResult(True, "回复不含禁词")
     return AssertResult(False, f"回复仍含禁词：{text}")
 
 
-def reply_any(reply: str, options: List[str]) -> AssertResult:
+def reply_any(reply: str, options: list[str]) -> AssertResult:
     for opt in options:
         if opt in reply:
             return AssertResult(True, f"回复命中 {opt!r}")
@@ -145,7 +145,7 @@ def make_reply_not_contains(text: str) -> Assertion:
     return f
 
 
-def make_reply_any(options: List[str]) -> Assertion:
+def make_reply_any(options: list[str]) -> Assertion:
     def f(ws: Path, reply: str) -> AssertResult:
         return reply_any(reply, options)
     return f

@@ -18,7 +18,6 @@ from tangyuan.eval.assertions import (
     make_file_contains,
     make_file_exists,
     make_file_not_contains,
-    make_file_not_exists,
     make_reply_any,
     make_reply_contains,
     make_reply_not_contains,
@@ -26,7 +25,6 @@ from tangyuan.eval.assertions import (
     make_shell_succeeds,
 )
 from tangyuan.eval.runner import EvalCase
-
 
 # ── 准备函数 ────────────────────────────────────────────────────
 

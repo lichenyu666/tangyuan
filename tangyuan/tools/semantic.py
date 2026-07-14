@@ -16,11 +16,9 @@ import json
 import math
 import re
 import sqlite3
-import subprocess
-import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # 支持的代码后缀（按重要性排序）
 _CODE_EXTS = {
@@ -63,8 +61,8 @@ def _is_code_file(path: Path) -> bool:
     return True
 
 
-def _iter_code_files(root: Path, *, max_files: int = 1000) -> List[Path]:
-    out: List[Path] = []
+def _iter_code_files(root: Path, *, max_files: int = 1000) -> list[Path]:
+    out: list[Path] = []
     try:
         for p in root.rglob("*"):
             if len(out) >= max_files:
@@ -80,13 +78,13 @@ def _iter_code_files(root: Path, *, max_files: int = 1000) -> List[Path]:
     return out
 
 
-def _chunk_text(text: str, *, max_chars: int = _CHUNK_MAX, overlap: int = _CHUNK_OVERLAP) -> List[Tuple[int, str]]:
+def _chunk_text(text: str, *, max_chars: int = _CHUNK_MAX, overlap: int = _CHUNK_OVERLAP) -> list[tuple[int, str]]:
     """把文本按行分块，每块 max_chars 字符，相邻块有 overlap 重叠。"""
     lines = text.splitlines()
     if not lines:
         return []
-    chunks: List[Tuple[int, str]] = []
-    cur: List[str] = []
+    chunks: list[tuple[int, str]] = []
+    cur: list[str] = []
     cur_len = 0
     start_line = 1
     line_no = 0
@@ -98,7 +96,7 @@ def _chunk_text(text: str, *, max_chars: int = _CHUNK_MAX, overlap: int = _CHUNK
             block = "\n".join(cur)
             chunks.append((start_line, block))
             # 保留末尾 overlap 行
-            keep_lines: List[str] = []
+            keep_lines: list[str] = []
             keep_len = 0
             for x in reversed(cur):
                 if keep_len + len(x) > overlap:
@@ -113,10 +111,10 @@ def _chunk_text(text: str, *, max_chars: int = _CHUNK_MAX, overlap: int = _CHUNK
     return chunks
 
 
-def _cosine(a: List[float], b: List[float]) -> float:
+def _cosine(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     if na == 0 or nb == 0:
@@ -133,7 +131,7 @@ class SemanticIndex:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.client = client
         self.model = model
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
 
     def _connect(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -161,11 +159,11 @@ class SemanticIndex:
             self._conn.close()
             self._conn = None
 
-    def _embed(self, texts: List[str]) -> List[List[float]]:
+    def _embed(self, texts: list[str]) -> list[list[float]]:
         if not texts or self.client is None:
             return []
         # 批量请求，单批最多 64 条
-        out: List[List[float]] = []
+        out: list[list[float]] = []
         for i in range(0, len(texts), 64):
             batch = texts[i:i + 64]
             try:
@@ -176,7 +174,7 @@ class SemanticIndex:
                 out.extend([[] for _ in batch])
         return out
 
-    def index(self, *, force: bool = False, max_files: int = 1000) -> Dict[str, Any]:
+    def index(self, *, force: bool = False, max_files: int = 1000) -> dict[str, Any]:
         """索引 workspace 代码文件。返回统计信息。"""
         conn = self._connect()
         files = _iter_code_files(self.workspace, max_files=max_files)
@@ -205,7 +203,7 @@ class SemanticIndex:
                 # 批量 embedding
                 chunk_texts = [c[1] for c in chunks]
                 embeddings = self._embed(chunk_texts) if self.client else []
-                for (line, block), emb in zip(chunks, embeddings or [None] * len(chunks)):
+                for (line, block), emb in zip(chunks, embeddings or [None] * len(chunks), strict=False):
                     conn.execute(
                         "INSERT INTO chunks (path, line, mtime, text, embedding) VALUES (?, ?, ?, ?, ?)",
                         (rel, line, mtime, block, json.dumps(emb) if emb else None),
@@ -217,7 +215,7 @@ class SemanticIndex:
         conn.commit()
         return {"added": added, "skipped": skipped, "errors": errors, "total_files": len(files)}
 
-    def search(self, query: str, *, top_k: int = 8) -> List[Hit]:
+    def search(self, query: str, *, top_k: int = 8) -> list[Hit]:
         """语义检索：返回 top_k 最相似块。"""
         if self.client is None:
             return []
@@ -230,7 +228,7 @@ class SemanticIndex:
         rows = conn.execute(
             "SELECT path, line, text, embedding FROM chunks WHERE embedding IS NOT NULL"
         ).fetchall()
-        scored: List[Tuple[float, str, int, str]] = []
+        scored: list[tuple[float, str, int, str]] = []
         for path, line, text, emb_json in rows:
             try:
                 emb = json.loads(emb_json)
@@ -239,13 +237,13 @@ class SemanticIndex:
             score = _cosine(q_vec, emb)
             scored.append((score, path, line, text))
         scored.sort(key=lambda x: -x[0])
-        out: List[Hit] = []
+        out: list[Hit] = []
         for score, path, line, text in scored[:top_k]:
             snippet = text[:400].replace("\n", " | ")
             out.append(Hit(path=path, line=line, score=score, snippet=snippet))
         return out
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         conn = self._connect()
         total = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
         with_emb = conn.execute(
@@ -260,14 +258,14 @@ class SemanticIndex:
         }
 
 
-def fallback_text_search(workspace: Path, query: str, *, max_hits: int = 8) -> List[Hit]:
+def fallback_text_search(workspace: Path, query: str, *, max_hits: int = 8) -> list[Hit]:
     """embedding 不可用时的纯文本兜底（ripgrep 或 python）。"""
     # 简单实现：把 query 拆词，逐文件 grep 命中数当分数
     words = [w for w in re.split(r"\s+", query.strip()) if w]
     if not words:
         return []
     files = _iter_code_files(workspace, max_files=500)
-    scored: List[Tuple[float, str, int, str]] = []
+    scored: list[tuple[float, str, int, str]] = []
     for f in files:
         try:
             text = f.read_text(encoding="utf-8", errors="replace")
@@ -288,4 +286,4 @@ def fallback_text_search(workspace: Path, query: str, *, max_hits: int = 8) -> L
         snippet = text[:400].replace("\n", " | ")
         scored.append((score, rel, first_line, snippet))
     scored.sort(key=lambda x: -x[0])
-    return [Hit(path=p, line=l, score=s, snippet=sn) for s, p, l, sn in scored[:max_hits]]
+    return [Hit(path=p, line=ln, score=s, snippet=sn) for s, p, ln, sn in scored[:max_hits]]

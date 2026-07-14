@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from tangyuan.agent.plan import TaskPlan
 from tangyuan.config import Settings
@@ -22,11 +21,11 @@ from tangyuan.tools.registry import ConfirmFn, ToolRegistry
 def build_default_tools(
     workspace: Path,
     shell_timeout: int = 60,
-    confirm: Optional[ConfirmFn] = None,
+    confirm: ConfirmFn | None = None,
     confirm_writes: bool = True,
     confirm_shell: bool = True,
-    plan: Optional[TaskPlan] = None,
-    settings: Optional[Settings] = None,
+    plan: TaskPlan | None = None,
+    settings: Settings | None = None,
     enable_mcp: bool = True,
     enable_subagent: bool = True,
     enable_team: bool = True,

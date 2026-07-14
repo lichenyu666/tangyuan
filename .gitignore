@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+.venv/
+.venv.*/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.tangyuan/
+.DS_Store
+*.log

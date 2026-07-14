@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tangyuan"
+version = "0.3.0"
+description = "汤圆 — 终端通用 Agent（独立实现；OpenAI 兼容 API）"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "openai>=1.40.0",
+  "typer>=0.12.0",
+  "rich>=13.7.0",
+  "pydantic>=2.7.0",
+  "pydantic-settings>=2.3.0",
+  "python-dotenv>=1.0.0",
+  "httpx>=0.27.0",
+  "ddgs>=9.0.0",
+  "python-pptx>=1.0.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0.0; python_version>='3.10'"]
+
+
+[project.scripts]
+tangyuan = "tangyuan.cli:app"
+ty = "tangyuan.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tangyuan*"]
+
+[tool.setuptools.package-data]
+tangyuan = ["prompts/*.md", "skills/catalog/*/SKILL.md", "mcp/servers/*.py"]

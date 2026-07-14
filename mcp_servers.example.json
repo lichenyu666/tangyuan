@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "time": {
+      "enabled": false,
+      "command": "python",
+      "args": ["-c", "print('replace with a real MCP server command')"],
+      "env": {}
+    }
+  }
+}

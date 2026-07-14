@@ -80,6 +80,25 @@ pip install -e '.[web]'
 python -m tangyuan.web.app
 ```
 
+### 部署到 Hugging Face Spaces
+
+GitHub Pages 无法跑 Python Agent。公开 Demo：
+[huggingface.co/spaces/lichenyu666/tangyuan-demo](https://huggingface.co/spaces/lichenyu666/tangyuan-demo)
+
+一次性配置：
+
+1. 登录 [Hugging Face](https://huggingface.co/join)，在 [Access Tokens](https://huggingface.co/settings/tokens) 创建 **Write** token  
+2. 本机已有 `.env`（含 `TANGYUAN_API_KEY`）时执行：
+
+```bash
+export HF_TOKEN=hf_xxx
+pip install huggingface_hub
+python scripts/setup_hf_space.py
+```
+
+脚本会创建 Space、上传 Docker 构建文件，并把 API Key 写入 Space Secrets（不打印密钥）。  
+也可在 GitHub → Settings → Secrets 添加 `HF_TOKEN`，用 workflow `Sync Hugging Face Space` 同步代码。
+
 ## 工程分层
 
 ```text

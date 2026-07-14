@@ -1,0 +1,62 @@
+name: Sync Hugging Face Space
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "tangyuan/web/**"
+      - "demo_workspace/**"
+      - "Dockerfile"
+      - "pyproject.toml"
+      - "scripts/setup_hf_space.py"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.HF_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install huggingface_hub
+        run: pip install "huggingface_hub>=0.26"
+      - name: Sync Space (code only; secrets managed separately)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          from huggingface_hub import HfApi
+
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          who = api.whoami()
+          username = who["name"]
+          repo_id = f"{username}/tangyuan-demo"
+          api.create_repo(
+              repo_id=repo_id,
+              repo_type="space",
+              space_sdk="docker",
+              private=False,
+              exist_ok=True,
+          )
+          root = Path(".")
+          for rel in ["Dockerfile", ".dockerignore", "pyproject.toml", "README.md", "LICENSE", ".env.example"]:
+              p = root / rel
+              if p.is_file():
+                  api.upload_file(path_or_fileobj=str(p), path_in_repo=rel, repo_id=repo_id, repo_type="space")
+          for folder in ["tangyuan", "demo_workspace", "skills"]:
+              src = root / folder
+              if src.is_dir():
+                  api.upload_folder(
+                      folder_path=str(src),
+                      path_in_repo=folder,
+                      repo_id=repo_id,
+                      repo_type="space",
+                      ignore_patterns=["**/__pycache__/**", "**/*.pyc", "**/.DS_Store"],
+                  )
+          print(f"Synced https://huggingface.co/spaces/{repo_id}")
+          PY

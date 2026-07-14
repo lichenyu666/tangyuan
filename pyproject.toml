@@ -27,7 +27,6 @@ web = ["gradio>=4.44.0"]
 [project.urls]
 Homepage = "https://github.com/lichenyu666/tangyuan"
 Repository = "https://github.com/lichenyu666/tangyuan"
-Demo = "https://huggingface.co/spaces/tangyuan666/lichenyu"
 
 [project.scripts]
 tangyuan = "tangyuan.cli:app"

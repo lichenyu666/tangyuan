@@ -37,6 +37,7 @@
 | **结构化任务规划** | `update_plan` 任务板 + Stop Gate 门禁：计划没做完不许收工，空转自动纠偏 |
 | **子代理 & 多智能体** | `explore / research / coder` 子代理独立上下文；可派生队友、收发消息、广播 |
 | **分层长期记忆** | 全局画像 / 项目笔记 / 按日日记 / 对话历史 / Token 计量，跨会话可召回 |
+| **RAG 检索增强问答** | 对任意文档目录检索相关片段，让 LLM 依据它作答并给出可核查的引用出处 |
 | **Skills 渐进披露** | 系统提示只放技能摘要，命中意图后再按需加载全文，省 token |
 | **MCP 协议** | 内置 stdio MCP Client 与 time server，可扩展外部 MCP 生态 |
 | **可插拔 Hooks** | 输出截断 / 写操作审计 / 计划收工门禁，围绕工具生命周期扩展 |
@@ -77,6 +78,7 @@ flowchart TB
 agent/     Agent 核心循环、任务计划、子代理、Agent Team   (~1.3k 行)
 tools/     工具注册与实现：fs/shell/git/search/mcp/...     (~2.7k 行, 最大模块)
 memory/    分层记忆存储与召回                              (~570 行)
+rag/       RAG 检索增强问答：检索 + 生成 + 引用
 skills/    Skill 渐进披露加载器 + 内置剧本
 mcp/       stdio MCP 客户端 + 内置 time server
 hooks/     工具/停止生命周期钩子
@@ -117,9 +119,24 @@ tangyuan                             # 进入交互式对话
 ```bash
 tangyuan run "总结当前仓库" -w .                 # 一次性任务
 tangyuan plan "先摸清结构再给改动建议" -w .       # 只读 Plan 模式，产出 plan.md
+tangyuan rag "什么是 RAG？" -w examples/rag_demo  # 检索增强问答（带引用）
 tangyuan eval --skip-network                     # 跑内置评测集
 tangyuan list-tools                              # 查看已装载工具
 ```
+
+### RAG 检索增强问答
+
+对一个文档目录提问，汤圆会先检索最相关的片段，再让 LLM **只依据这些片段作答**，
+并在底部列出引用来源（文件:行号），找不到就明说「无法回答」以降低幻觉。
+
+```bash
+tangyuan rag "汤圆的记忆系统怎么分层？" -w examples/rag_demo
+tangyuan rag "我的学习笔记里怎么讲索引的？" -w ~/notes   # 换成你自己的资料目录
+```
+
+检索优先用 embedding 向量（需 `TANGYUAN_EMBEDDING_*` 指向支持 embedding 的服务）；
+若不可用则自动降级为**支持中文分词的文本检索**，所以即使用 DeepSeek 这类无 embedding
+接口的网关也能开箱即用。实现见 [`tangyuan/rag/engine.py`](tangyuan/rag/engine.py)。
 
 交互中可用斜杠命令：`/skills` `/skill <id>` `/memory` `/tokens` `/team` `/inbox` `/clear`。
 
@@ -157,7 +174,9 @@ ruff check .
 - [x] 自研工具循环 · 流式输出 · 会话压缩 / 项目蒸馏
 - [x] 结构化任务计划（Stop Gate）· 子代理 · Agent Team · MCP · Hooks
 - [x] 分层记忆 · Skills 渐进披露 · `apply_patch` 精准编辑
+- [x] RAG 检索增强问答（检索 + 生成 + 引用，中文可用）
 - [x] 端到端评测集 · CI · 单元测试
+- [ ] RAG 升级：重排序（rerank）与多轮追问
 - [ ] 更强权限模型与沙箱
 - [ ] 评测成功率看板
 - [ ] 在线 Demo / 云端托管

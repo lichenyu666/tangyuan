@@ -463,6 +463,48 @@ def list_tools() -> None:
     tools_table(rows)
 
 
+@app.command("rag")
+def rag_cmd(
+    question: str = typer.Argument(..., help="要问的问题"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="知识库目录，默认当前目录"),
+    top_k: int = typer.Option(5, "--top-k", "-k", help="检索片段数量"),
+    reindex: bool = typer.Option(False, "--reindex", help="强制重建索引"),
+) -> None:
+    """RAG 检索增强问答：在知识库目录里检索相关内容，再让 LLM 依据它作答并给出引用。"""
+    from rich.panel import Panel
+
+    from tangyuan.rag import RAGEngine
+    from tangyuan.ui.theme import GOLD
+
+    settings = load_settings(workspace=workspace)
+    ws = settings.resolve_workspace()
+    console.print(f"[ty.brand]RAG 问答[/] · 知识库 [ty.path]{ws}[/]")
+
+    engine = RAGEngine(ws, settings=settings)
+    if reindex:
+        with console.status("[ty.muted]重建索引中…[/]"):
+            stats = engine.index(force=True)
+        console.print(f"[ty.muted]索引：{stats}[/]")
+
+    with console.status("[ty.muted]检索 + 生成中…[/]"):
+        result = engine.ask(question, top_k=top_k)
+
+    console.print(
+        Panel(
+            result.answer or "(无回答)",
+            title=f"[ty.brand]回答[/] [ty.muted]({result.engine})[/]",
+            border_style=GOLD,
+            padding=(1, 2),
+        )
+    )
+    if result.sources:
+        console.print("[ty.brand]引用来源[/]")
+        for i, src in enumerate(result.sources, 1):
+            console.print(f"  [ty.tool][{i}][/] [ty.path]{src}[/]")
+    else:
+        console.print("[ty.muted]（未检索到相关资料）[/]")
+
+
 @app.command("show-trace")
 def show_trace(path: str = typer.Argument(...)) -> None:
     from rich.panel import Panel

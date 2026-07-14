@@ -37,6 +37,14 @@ class Settings(BaseSettings):
         default="text-embedding-3-small",
         description="语义检索用的 embedding 模型名",
     )
+    embedding_api_key: str = Field(
+        default="",
+        description="embedding 专用 Key；留空则复用 api_key（注意 DeepSeek 无 embedding 接口）",
+    )
+    embedding_base_url: str = Field(
+        default="",
+        description="embedding 专用 Base URL；留空则复用 base_url",
+    )
     max_steps: int = Field(default=30, ge=1, le=100)
     workspace: Path = Field(default=Path("."))
     temperature: float = Field(default=0.2, ge=0, le=2)

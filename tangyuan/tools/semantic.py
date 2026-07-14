@@ -258,11 +258,38 @@ class SemanticIndex:
         }
 
 
+def _tokenize_query(query: str) -> list[str]:
+    """把查询切成检索词：英文/数字按空白与词边界；中文用连续汉字的二元组（bigram）。
+
+    这样即使没有 embedding，中文连写查询（如「记忆系统分层」）也能有效检索，
+    而不是把整句当成一个字面串去匹配。
+    """
+    q = query.strip().lower()
+    if not q:
+        return []
+    tokens: list[str] = []
+    # 英文/数字词
+    tokens.extend(re.findall(r"[a-z0-9_]+", q))
+    # 连续中文串 → 二元组；单字中文串保留单字
+    for run in re.findall(r"[\u4e00-\u9fff]+", q):
+        if len(run) == 1:
+            tokens.append(run)
+        else:
+            tokens.extend(run[i : i + 2] for i in range(len(run) - 1))
+    # 去重保序
+    seen: set[str] = set()
+    out: list[str] = []
+    for t in tokens:
+        if t and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
 def fallback_text_search(workspace: Path, query: str, *, max_hits: int = 8) -> list[Hit]:
-    """embedding 不可用时的纯文本兜底（ripgrep 或 python）。"""
-    # 简单实现：把 query 拆词，逐文件 grep 命中数当分数
-    words = [w for w in re.split(r"\s+", query.strip()) if w]
-    if not words:
+    """embedding 不可用时的纯文本兜底（支持中文二元分词）。"""
+    tokens = _tokenize_query(query)
+    if not tokens:
         return []
     files = _iter_code_files(workspace, max_files=500)
     scored: list[tuple[float, str, int, str]] = []
@@ -272,15 +299,21 @@ def fallback_text_search(workspace: Path, query: str, *, max_hits: int = 8) -> l
         except OSError:
             continue
         rel = str(f.relative_to(workspace))
-        # 简单评分：所有词在文件中出现次数之和
-        hits_per_word = [text.lower().count(w.lower()) for w in words]
-        score = sum(min(h, 5) for h in hits_per_word) / max(len(words), 1)
-        if score <= 0:
+        lower = text.lower()
+        # 评分：各词命中次数（截断上限）之和 / 词数，命中不同词越多分越高
+        hits_per_token = [lower.count(t) for t in tokens]
+        matched = sum(1 for h in hits_per_token if h > 0)
+        if matched == 0:
             continue
+        freq_score = sum(min(h, 5) for h in hits_per_token) / max(len(tokens), 1)
+        # 覆盖率加权：命中的不同词占比
+        coverage = matched / len(tokens)
+        score = freq_score * (0.5 + coverage)
         # 找首个命中行
         first_line = 1
         for i, line in enumerate(text.splitlines(), 1):
-            if any(w.lower() in line.lower() for w in words):
+            ll = line.lower()
+            if any(t in ll for t in tokens):
                 first_line = i
                 break
         snippet = text[:400].replace("\n", " | ")

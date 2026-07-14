@@ -35,6 +35,7 @@ flowchart TB
 | `agent/` | Agent 循环、任务计划、子代理、多智能体协作 | `TangyuanAgent`(core.py)、`TaskPlan`(plan.py)、`subagent.py`、`team.py` |
 | `tools/` | 工具注册与实现，统一装配 | `ToolRegistry`/`ToolSpec`(registry.py)、`build_default_tools`(default.py)、`register_*.py` |
 | `memory/` | 分层记忆存储与召回 | `store.py`、`paths.py`、`history.py`、`tokens.py` |
+| `rag/` | 检索增强问答：检索 + 生成 + 引用 | `engine.py`（`RAGEngine`，复用 `SemanticIndex`） |
 | `skills/` | Skill 发现与渐进披露 | `loader.py`、`catalog/*/SKILL.md` |
 | `mcp/` | stdio MCP 客户端 + 内置 server | `MCPClient`、`servers/time_server.py` |
 | `hooks/` | 工具/停止生命周期扩展点 | `HookRegistry`(base.py)、`builtin.py` |
@@ -82,7 +83,21 @@ sequenceDiagram
 ### 3. 工具抽象：注册一个 spec + handler 即可扩展
 `ToolSpec`（Pydantic）自动生成 OpenAI function schema，`ToolRegistry` 负责注册/卸载/调用并统一捕获异常返回结构化错误。新增工具无需改动核心循环；`read_only` 与公开 Demo 白名单通过「按需注册 + 卸载黑名单」组合得到不同权限档位。
 
-### 4. 安全分层
+### 4. RAG：检索增强问答
+`rag/engine.py` 复用 `SemanticIndex` 完成检索，再补齐「增强 + 生成」：把 top-k 片段
+按编号与来源（文件:行号）拼进提示词，让 LLM **只依据这些片段作答**并用 `[编号]` 引用，
+找不到就明确拒答以降低幻觉。检索优先走 embedding 向量；不可用时降级为**支持中文二元
+分词**的文本检索，因此在无 embedding 接口的网关（如 DeepSeek）上也能开箱即用。
+
+```mermaid
+flowchart LR
+  q["问题"] --> r["检索 top-k · SemanticIndex / 文本兜底"]
+  r --> a["拼装带出处上下文"]
+  a --> g["LLM 依据上下文作答"]
+  g --> o["答案 + 引用来源"]
+```
+
+### 5. 安全分层
 - 写操作路径限定在 workspace；危险 shell（`rm -rf /`、`curl|sh` 等）硬拒绝
 - 交互模式对 shell / 写操作二次确认（`-y` 关闭）
 - Plan 模式只读；公开 Demo 进一步卸掉 shell / 写盘 / 子代理 / Team / MCP

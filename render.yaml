@@ -1,0 +1,25 @@
+# Exported from GitHub for free hosting alternatives (HF free tier no longer
+# allows new Gradio/Docker Spaces without PRO as of mid-2026).
+#
+# One-click: https://render.com/deploy?repo=https://github.com/lichenyu666/tangyuan
+services:
+  - type: web
+    name: tangyuan-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: TANGYUAN_API_KEY
+        sync: false
+      - key: TANGYUAN_BASE_URL
+        value: https://api.deepseek.com
+      - key: TANGYUAN_MODEL
+        value: deepseek-chat
+      - key: TANGYUAN_MAX_STEPS
+        value: "12"
+      - key: TANGYUAN_DEMO_WORKSPACE
+        value: /app/demo_workspace
+      - key: GRADIO_SERVER_NAME
+        value: 0.0.0.0
+      - key: GRADIO_SERVER_PORT
+        value: "7860"

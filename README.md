@@ -1,22 +1,13 @@
----
-title: Tangyuan Demo
-emoji: 🥟
-colorFrom: yellow
-colorTo: green
-sdk: docker
-pinned: false
-app_port: 7860
----
-
 # 汤圆 Tangyuan
 
 **终端里的通用 Agent** — 独立实现的多工具闭环助手（读改文件、跑命令、搜网页、任务规划、子代理、MCP）。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Live Demo](https://img.shields.io/badge/🤗%20Live%20Demo-Hugging%20Face-ffcc00)](https://huggingface.co/spaces/lichenyu666/tangyuan-demo)
+[![Live Demo](https://img.shields.io/badge/🥟%20Live%20Demo-Online-c6f27a)](https://huggingface.co/spaces/tangyuan666/lichenyu)
 
-> 简历访客？直接打开 **[在线 Demo](https://huggingface.co/spaces/lichenyu666/tangyuan-demo)** 和汤圆聊聊这个项目。
+> 简历访客？打开 **[在线 Demo](https://huggingface.co/spaces/tangyuan666/lichenyu)** 和汤圆聊聊这个项目。  
+> 直达对话（临时公网）：https://4936434bc8faa9cb4c.gradio.live
 
 ## 它能做什么
 
@@ -80,24 +71,26 @@ pip install -e '.[web]'
 python -m tangyuan.web.app
 ```
 
-### 部署到 Hugging Face Spaces
+### 部署在线 Demo
 
-GitHub Pages 无法跑 Python Agent。公开 Demo：
-[huggingface.co/spaces/lichenyu666/tangyuan-demo](https://huggingface.co/spaces/lichenyu666/tangyuan-demo)
+> 注意：自 2026 年中起，Hugging Face **免费账号无法新建 Gradio/Docker Space**（需 PRO）。  
+> 当前公开入口用 **Static Space** 展示，并嵌入 Gradio 临时公网对话链接。
 
-一次性配置：
+- 项目页（HF Static）：https://huggingface.co/spaces/tangyuan666/lichenyu  
+- 临时对话链接：启动本机 Demo 时设置 `GRADIO_SHARE=1` 可生成 `*.gradio.live`（最长约一周，电脑休眠会断）
 
-1. 登录 [Hugging Face](https://huggingface.co/join)，在 [Access Tokens](https://huggingface.co/settings/tokens) 创建 **Write** token  
-2. 本机已有 `.env`（含 `TANGYUAN_API_KEY`）时执行：
+**持久免费托管（推荐 Render）：**
+
+1. 打开 https://render.com/deploy?repo=https://github.com/lichenyu666/tangyuan  
+2. 用 GitHub 登录 Render，填入 `TANGYUAN_API_KEY` Secret  
+3. 部署完成后把个人主页 / README 的 Demo 链接改成 Render 给你的 URL
+
+本地跑 Demo：
 
 ```bash
-export HF_TOKEN=hf_xxx
-pip install huggingface_hub
-python scripts/setup_hf_space.py
+pip install -e '.[web]'
+GRADIO_SHARE=1 python -m tangyuan.web.app
 ```
-
-脚本会创建 Space、上传 Docker 构建文件，并把 API Key 写入 Space Secrets（不打印密钥）。  
-也可在 GitHub → Settings → Secrets 添加 `HF_TOKEN`，用 workflow `Sync Hugging Face Space` 同步代码。
 
 ## 工程分层
 

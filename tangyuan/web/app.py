@@ -182,10 +182,11 @@ def build_app():
 
 def main() -> None:
     demo = build_app()
+    share = os.environ.get("GRADIO_SHARE", "").strip().lower() in {"1", "true", "yes"}
     demo.queue(default_concurrency_limit=4).launch(
         server_name=os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0"),
         server_port=int(os.environ.get("GRADIO_SERVER_PORT", "7860")),
-        share=False,
+        share=share,
     )
 
 
